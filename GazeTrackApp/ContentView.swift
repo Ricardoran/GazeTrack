@@ -143,6 +143,7 @@ struct ContentView: View {
             player = AVPlayer(url: videoURL)
         } else {
             // Fallback to the file path if not in bundle
+            // fall back video is not available to be used at this time, I think we might want to use a while board as placeholder
             let videoPath = "/Users/ricardozhang/Desktop/AI_Agents/GazeTrackApp/GazeTrackApp/rocket.mp4"
             let videoURL = URL(fileURLWithPath: videoPath)
             player = AVPlayer(url: videoURL)
