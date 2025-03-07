@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import AVKit
 
 struct GazeData: Codable {
     let elapsedTime: TimeInterval // Time since recording started in seconds
@@ -17,23 +18,19 @@ struct ContentView: View {
     
     // State to trigger an alert after export completes
     @State private var showExportAlert: Bool = false
-    // State to control whiteboard mode
-    @State private var whiteboardMode: Bool = false
-
+    // State to control video mode
+    @State private var videoMode: Bool = false
+    // State to control video opacity
+    @State private var videoOpacity: Double = 1.0
+    // Video player
+    @State private var player = AVPlayer()
+    
     var body: some View {
         ZStack(alignment: .bottom) {
-            // White board background when in whiteboard mode
-            if whiteboardMode {
-                Rectangle()
-                    .fill(Color.white)
-                    .edgesIgnoringSafeArea(.all)
-            }
-            
             // Reference the CustomARViewContainer from its separate file.
             CustomARViewContainer(eyeGazeActive: $eyeGazeActive,
                                   lookAtPoint: $lookAtPoint,
                                   isWinking: $isWinking)
-                .opacity(whiteboardMode ? 0 : 1) // Hide camera view when in whiteboard mode
                 .onReceive(timerPublisher) { _ in
                     if eyeGazeActive,
                        let point = lookAtPoint,
@@ -43,18 +40,56 @@ struct ContentView: View {
                         gazeTrajectory.append(gazeData)
                     }
                 }
+            
+            // Video player when in video mode
+            if videoMode {
+                VideoPlayer(player: player)
+                    .opacity(videoOpacity)
+                    .edgesIgnoringSafeArea(.all)
+                    .onAppear {
+                        // Set up the video to loop
+                        setupVideoPlayer()
+                    }
+                    .onDisappear {
+                        player.pause()
+                    }
+            }
 
             VStack(spacing: 20) {
-                // Toggle for whiteboard mode
+                // Toggle for video mode
                 Button(action: {
-                    whiteboardMode.toggle()
+                    videoMode.toggle()
+                    if videoMode {
+                        player.play()
+                    } else {
+                        player.pause()
+                    }
                 }) {
-                    Text(whiteboardMode ? "Show Camera" : "Show Whiteboard")
+                    Text(videoMode ? "Show Camera" : "Show Video")
                         .font(.headline)
                         .foregroundColor(.white)
                         .padding()
                         .background(Color.purple)
                         .cornerRadius(10)
+                }
+                
+                // Opacity slider (only visible when video is active)
+                if videoMode {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Video Opacity: \(Int(videoOpacity * 100))%")
+                            .font(.subheadline)
+                            .foregroundColor(.white)
+                            .padding(8)
+                            .background(Color.black.opacity(0.6))
+                            .cornerRadius(5)
+                        
+                        Slider(value: $videoOpacity, in: 0.1...1.0)
+                            .padding(.horizontal)
+                            .background(Color.black.opacity(0.6))
+                            .cornerRadius(10)
+                            .padding(.horizontal, 10)
+                    }
+                    .padding(.vertical, 5)
                 }
                 
                 // Start/Stop Button with dedicated logic.
@@ -92,6 +127,33 @@ struct ContentView: View {
                     .frame(width: isWinking ? 100 : 40, height: isWinking ? 100 : 40)
                     .position(lookAtPoint)
             }
+        }
+        .onAppear {
+            // Initialize the video player when the view appears
+            setupVideoPlayer()
+        }
+    }
+    
+    // MARK: - Video Setup
+    
+    /// Sets up the video player with the rocket video
+    private func setupVideoPlayer() {
+        // Try to get the video from the app bundle first
+        if let videoURL = Bundle.main.url(forResource: "testvideo", withExtension: "mov") {
+            player = AVPlayer(url: videoURL)
+        } else {
+            // Fallback to the file path if not in bundle
+            let videoPath = "/Users/ricardozhang/Desktop/AI_Agents/GazeTrackApp/GazeTrackApp/rocket.mp4"
+            let videoURL = URL(fileURLWithPath: videoPath)
+            player = AVPlayer(url: videoURL)
+        }
+        
+        // Set up looping
+        NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, 
+                                              object: player.currentItem, 
+                                              queue: .main) { _ in
+            player.seek(to: CMTime.zero)
+            player.play()
         }
     }
     
