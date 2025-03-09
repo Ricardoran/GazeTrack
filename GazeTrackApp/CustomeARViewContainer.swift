@@ -1,8 +1,11 @@
-//
 //  CustomARViewContainer.swift
 //  Eye-Tracker
 //
-//  Created by Shriram Ghadge on 27/06/23.
+//  Created by Haoran Zhang on 03/07 2025.
+//
+//  A custom AR view container that handles face tracking and eye gaze detection
+//  This component integrates ARKit face tracking to enable eye gaze tracking
+//  and facial expression detection features
 //
 
 import SwiftUI
