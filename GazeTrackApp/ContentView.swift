@@ -139,7 +139,7 @@ struct ContentView: View {
     /// Sets up the video player with the rocket video
     private func setupVideoPlayer() {
         // Try to get the video from the app bundle first
-        if let videoURL = Bundle.main.url(forResource: "testvideo", withExtension: "mov") {
+        if let videoURL = Bundle.main.url(forResource: "snake", withExtension: "mov") {
             player = AVPlayer(url: videoURL)
         } else {
             // Fallback to the file path if not in bundle
