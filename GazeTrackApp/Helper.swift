@@ -36,25 +36,23 @@ struct Device {
 }
 
 struct Ranges {
-    // 动态获取当前方向下的宽度范围
     static var widthRange: ClosedRange<CGFloat> {
         let interfaceOrientation = UIApplication.shared.windows.first?.windowScene?.interfaceOrientation ?? .portrait
         
         if interfaceOrientation.isLandscape {
-            return (0...UIScreen.main.bounds.height)
+            return (0...UIScreen.main.bounds.height - 82)  // 横屏时左右需要考虑系统UI偏移
         } else {
-            return (0...UIScreen.main.bounds.width)
+            return (0...UIScreen.main.bounds.width)  // 竖屏时宽度不需要偏移
         }
     }
     
-    // 动态获取当前方向下的高度范围
     static var heightRange: ClosedRange<CGFloat> {
         let interfaceOrientation = UIApplication.shared.windows.first?.windowScene?.interfaceOrientation ?? .portrait
         
         if interfaceOrientation.isLandscape {
-            return (0...UIScreen.main.bounds.width - 82)  // 保持原有的-82偏移
+            return (0...UIScreen.main.bounds.width)  // 横屏时上下不需要偏移
         } else {
-            return (0...UIScreen.main.bounds.height - 82)  // 保持原有的-82偏移
+            return (0...UIScreen.main.bounds.height - 82)  // 竖屏时需要考虑顶部和底部系统UI偏移
         }
     }
 }
