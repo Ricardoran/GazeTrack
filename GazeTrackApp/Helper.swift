@@ -36,8 +36,27 @@ struct Device {
 }
 
 struct Ranges {
-    static let widthRange: ClosedRange<CGFloat> = (0...Device.frameSize.width)
-    static let heightRange: ClosedRange<CGFloat> = (0...Device.frameSize.height)
+    // 动态获取当前方向下的宽度范围
+    static var widthRange: ClosedRange<CGFloat> {
+        let interfaceOrientation = UIApplication.shared.windows.first?.windowScene?.interfaceOrientation ?? .portrait
+        
+        if interfaceOrientation.isLandscape {
+            return (0...UIScreen.main.bounds.height)
+        } else {
+            return (0...UIScreen.main.bounds.width)
+        }
+    }
+    
+    // 动态获取当前方向下的高度范围
+    static var heightRange: ClosedRange<CGFloat> {
+        let interfaceOrientation = UIApplication.shared.windows.first?.windowScene?.interfaceOrientation ?? .portrait
+        
+        if interfaceOrientation.isLandscape {
+            return (0...UIScreen.main.bounds.width - 82)  // 保持原有的-82偏移
+        } else {
+            return (0...UIScreen.main.bounds.height - 82)  // 保持原有的-82偏移
+        }
+    }
 }
 
 extension CGFloat {

@@ -39,7 +39,7 @@ class CustomARView: ARView, ARSessionDelegate {
         
         super.init(frame: .zero)
         
-//        self.debugOptions = [.showAnchorOrigins]
+       self.debugOptions = [.showAnchorOrigins]
         
         self.session.delegate = self
         
@@ -76,12 +76,58 @@ class CustomARView: ARView, ARSessionDelegate {
         
         let transformedLookAtPoint = simd_mul(simd_inverse(cameraTransform), lookAtPointInWorld)
         
-        let screenX = transformedLookAtPoint.y / (Float(Device.screenSize.width) / 2) * Float(Device.frameSize.width)
-        let screenY = transformedLookAtPoint.x / (Float(Device.screenSize.height) / 2) * Float(Device.frameSize.height)
+        // 获取界面方向
+        let interfaceOrientation = UIApplication.shared.windows.first?.windowScene?.interfaceOrientation ?? .portrait
+        
+        // 根据界面方向调整坐标计算
+        var screenX: Float = 0
+        var screenY: Float = 0
+        
+        // 获取屏幕尺寸
+        let screenBounds = UIScreen.main.bounds
+        let screenWidth = Float(screenBounds.width)
+        let screenHeight = Float(screenBounds.height)
+        
+        switch interfaceOrientation {
+        case .landscapeLeft:
+            // 横屏左模式 - 调整x和y的映射关系
+            screenX = transformedLookAtPoint.x
+            screenY = -transformedLookAtPoint.y
+            
+            // 应用适当的缩放和偏移
+            screenX = (screenX + 1) / 2 * screenWidth
+            screenY = (screenY + 1) / 2 * screenHeight
+            
+        case .landscapeRight:
+            // 横屏右模式 - 调整x和y的映射关系
+            screenX = -transformedLookAtPoint.x
+            screenY = transformedLookAtPoint.y
+            
+            // 应用适当的缩放和偏移
+            screenX = (screenX + 1) / 2 * screenWidth
+            screenY = (screenY + 1) / 2 * screenHeight
+            
+        default:
+            // 竖屏模式下的原始计算
+            screenX = transformedLookAtPoint.y / (Float(Device.screenSize.width) / 2) * Float(Device.frameSize.width)
+            screenY = transformedLookAtPoint.x / (Float(Device.screenSize.height) / 2) * Float(Device.frameSize.height)
+        }
+        
+        // 创建适当的范围限制
+        let widthRange: ClosedRange<CGFloat>
+        let heightRange: ClosedRange<CGFloat>
+        
+        if interfaceOrientation.isLandscape {
+            widthRange = 0...CGFloat(screenWidth)
+            heightRange = 0...CGFloat(screenHeight)
+        } else {
+            widthRange = Ranges.widthRange
+            heightRange = Ranges.heightRange
+        }
         
         let focusPoint = CGPoint(
-            x: CGFloat(screenX).clamped(to: Ranges.widthRange),
-            y: CGFloat(screenY).clamped(to: Ranges.heightRange)
+            x: CGFloat(screenX).clamped(to: widthRange),
+            y: CGFloat(screenY).clamped(to: heightRange)
         )
         
         DispatchQueue.main.async {

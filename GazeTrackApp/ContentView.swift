@@ -25,6 +25,9 @@ struct ContentView: View {
     // Video player
     @State private var player = AVPlayer()
     
+    // 添加界面方向状态
+    @State private var interfaceOrientation: UIInterfaceOrientation = .portrait
+    
     var body: some View {
         ZStack(alignment: .bottom) {
             // Reference the CustomARViewContainer from its separate file.
@@ -129,8 +132,23 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            // Initialize the video player when the view appears
+            // 初始化视频播放器
             setupVideoPlayer()
+            
+            // 添加方向变化通知监听
+            NotificationCenter.default.addObserver(forName: UIDevice.orientationDidChangeNotification, 
+                                                  object: nil, 
+                                                  queue: .main) { _ in
+                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                    self.interfaceOrientation = windowScene.interfaceOrientation
+                }
+            }
+        }
+        .onDisappear {
+            // 移除方向变化通知监听
+            NotificationCenter.default.removeObserver(self, 
+                                                     name: UIDevice.orientationDidChangeNotification, 
+                                                     object: nil)
         }
     }
     
@@ -139,7 +157,7 @@ struct ContentView: View {
     /// Sets up the video player with the rocket video
     private func setupVideoPlayer() {
         // Try to get the video from the app bundle first
-        if let videoURL = Bundle.main.url(forResource: "snake", withExtension: "mov") {
+        if let videoURL = Bundle.main.url(forResource: "asd_11_11", withExtension: "mp4") {
             player = AVPlayer(url: videoURL)
         } else {
             // Fallback to the file path if not in bundle
