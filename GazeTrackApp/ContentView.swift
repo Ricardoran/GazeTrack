@@ -16,6 +16,11 @@ struct ContentView: View {
     @State private var timerPublisher = Timer.publish(every: 1.0/60.0, on: .main, in: .common).autoconnect()
     @State private var recordingStartTime: Date? // Track when recording started
     
+    // 添加倒计时相关状态
+    @State private var isCountingDown: Bool = false
+    @State private var countdownValue: Int = 3
+    @State private var showCountdown: Bool = false
+    
     // State to trigger an alert after export completes
     @State private var showExportAlert: Bool = false
     // State to control video mode
@@ -35,7 +40,7 @@ struct ContentView: View {
                                   lookAtPoint: $lookAtPoint,
                                   isWinking: $isWinking)
                 .onReceive(timerPublisher) { _ in
-                    if eyeGazeActive,
+                    if eyeGazeActive && !isCountingDown,
                        let point = lookAtPoint,
                        let startTime = recordingStartTime {
                         let elapsedTime = Date().timeIntervalSince(startTime)
@@ -68,7 +73,7 @@ struct ContentView: View {
                         player.pause()
                     }
                 }) {
-                    Text(videoMode ? "Show Camera" : "Show Video")
+                    Text(videoMode ? "Camera" : "Video")
                         .font(.headline)
                         .foregroundColor(.white)
                         .padding()
@@ -124,9 +129,20 @@ struct ContentView: View {
                       dismissButton: .default(Text("OK")))
             }
 
+            // 添加倒计时显示
+            if showCountdown {
+                Text("\(countdownValue)")
+                    .font(.system(size: 100, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(30)
+                    .background(Color.black.opacity(0.7))
+                    .cornerRadius(20)
+                    .transition(.scale)
+            }
+
             if let lookAtPoint = lookAtPoint, eyeGazeActive {
                 Circle()
-                    .fill(Color.blue)
+                    .fill(Color.red)
                     .frame(width: isWinking ? 100 : 40, height: isWinking ? 100 : 40)
                     .position(lookAtPoint)
             }
@@ -181,17 +197,48 @@ struct ContentView: View {
     /// Handles the start/stop logic for eye gaze tracking.
     func handleStartStop() {
         if !eyeGazeActive {
-            // When starting, reset the trajectory history and begin tracking.
+            // 立即激活眼动追踪，但不立即记录
             print("Starting eye gaze tracking...")
             gazeTrajectory.removeAll() // Reset the trajectory data.
-            recordingStartTime = Date()  // Set the recording start time.
             eyeGazeActive = true
+            
+            // 开始倒计时
+            startCountdown()
         } else {
             // When stopping, end tracking.
             print("Stopping eye gaze tracking...")
             eyeGazeActive = false
             recordingStartTime = nil
+            
+            // 如果正在倒计时，取消倒计时
+            if isCountingDown {
+                isCountingDown = false
+                showCountdown = false
+            }
         }
+    }
+    
+    // 添加倒计时函数
+    private func startCountdown() {
+        isCountingDown = true
+        showCountdown = true
+        countdownValue = 3
+        
+        // 创建倒计时定时器
+        let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
+            if self.countdownValue > 1 {
+                self.countdownValue -= 1
+            } else {
+                // 倒计时结束，开始记录
+                self.showCountdown = false
+                self.isCountingDown = false
+                self.recordingStartTime = Date()  // 设置记录开始时间
+                timer.invalidate()
+            }
+        }
+        
+        // 确保定时器在主线程运行
+        RunLoop.current.add(timer, forMode: .common)
     }
     
     /// Handles the export trajectory button tap.
