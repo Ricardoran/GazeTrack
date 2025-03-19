@@ -118,9 +118,9 @@ struct ContentView: View {
                         .padding()
                         .background(Color.green)
                         .cornerRadius(10)
-                        .opacity((eyeGazeActive || gazeTrajectory.isEmpty) ? 0.5 : 1.0)
+                        .opacity((eyeGazeActive || gazeTrajectory.isEmpty || !isValidTrajectory()) ? 0.5 : 1.0)
                 }
-                .disabled(eyeGazeActive || gazeTrajectory.isEmpty)
+                .disabled(eyeGazeActive || gazeTrajectory.isEmpty || !isValidTrajectory())
             }
             .padding(.bottom, 50)
             .alert(isPresented: $showExportAlert) {
@@ -208,6 +208,10 @@ struct ContentView: View {
             // When stopping, end tracking.
             print("Stopping eye gaze tracking...")
             eyeGazeActive = false
+            
+            // 处理轨迹数据，删除最后3秒的数据
+            processTrajectoryData()
+            
             recordingStartTime = nil
             
             // 如果正在倒计时，取消倒计时
@@ -216,6 +220,46 @@ struct ContentView: View {
                 showCountdown = false
             }
         }
+    }
+    
+    // 添加处理轨迹数据的函数
+    private func processTrajectoryData() {
+        // 检查是否有轨迹数据
+        guard !gazeTrajectory.isEmpty else { return }
+        
+        // 获取最后一个数据点的时间，即总记录时长
+        if let lastDataPoint = gazeTrajectory.last {
+            let totalDuration = lastDataPoint.elapsedTime
+            
+            // 如果总时长小于3秒，删除整个轨迹
+            if totalDuration < 3.0 {
+                print("Recording too short (< 3s), discarding all data...")
+                gazeTrajectory.removeAll()
+                return
+            }
+            
+            // 如果总时长小于10秒，删除整个轨迹
+            if totalDuration < 10.0 {
+                print("Recording too short (< 10s), discarding all data...")
+                gazeTrajectory.removeAll()
+                return
+            }
+            
+            // 删除最后3秒的数据
+            let cutoffTime = totalDuration - 3.0
+            gazeTrajectory = gazeTrajectory.filter { $0.elapsedTime <= cutoffTime }
+            
+            print("Removed last 3 seconds of trajectory data. Remaining data points: \(gazeTrajectory.count)")
+        }
+    }
+    
+    /// Handles the export trajectory button tap.
+    func handleExportTrajectory() {
+        // Log export event and perform export.
+        print("Exporting trajectory with \(gazeTrajectory.count) data points...")
+        exportTrajectory(trajectory: gazeTrajectory)
+        // After exporting, display an alert.
+        showExportAlert = true
     }
     
     // 添加倒计时函数
@@ -241,13 +285,14 @@ struct ContentView: View {
         RunLoop.current.add(timer, forMode: .common)
     }
     
-    /// Handles the export trajectory button tap.
-    func handleExportTrajectory() {
-        // Log export event and perform export.
-        print("Exporting trajectory with \(gazeTrajectory.count) data points...")
-        exportTrajectory(trajectory: gazeTrajectory)
-        // After exporting, display an alert.
-        showExportAlert = true
+    // 添加检查轨迹是否有效的辅助函数
+    private func isValidTrajectory() -> Bool {
+        guard !gazeTrajectory.isEmpty, let lastPoint = gazeTrajectory.last else {
+            return false
+        }
+        
+        // 检查总时长是否至少为10秒
+        return lastPoint.elapsedTime >= 10.0
     }
     
     /// Exports the trajectory data to a CSV file and presents a share sheet.

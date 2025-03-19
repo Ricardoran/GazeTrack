@@ -39,7 +39,7 @@ class CustomARView: ARView, ARSessionDelegate {
         
         super.init(frame: .zero)
         
-       self.debugOptions = [.showAnchorOrigins]
+    //    self.debugOptions = [.showAnchorOrigins]
         
         self.session.delegate = self
         
