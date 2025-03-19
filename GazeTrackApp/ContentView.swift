@@ -33,6 +33,11 @@ struct ContentView: View {
     // 添加界面方向状态
     @State private var interfaceOrientation: UIInterfaceOrientation = .portrait
     
+    // 添加按钮显示控制状态
+    @State private var showButtons: Bool = true
+    @State private var lastInteractionTime: Date = Date()
+    @State private var hideButtonsTimer: Timer? = nil
+    
     var body: some View {
         ZStack(alignment: .bottom) {
             // Reference the CustomARViewContainer from its separate file.
@@ -51,78 +56,96 @@ struct ContentView: View {
             
             // Video player when in video mode
             if videoMode {
-                VideoPlayer(player: player)
-                    .opacity(videoOpacity)
-                    .edgesIgnoringSafeArea(.all)
-                    .onAppear {
-                        // Set up the video to loop
-                        setupVideoPlayer()
-                    }
-                    .onDisappear {
-                        player.pause()
-                    }
+                ZStack {
+                    CustomVideoPlayer(player: player, showButtons: $showButtons)
+                        .opacity(videoOpacity)
+                        .edgesIgnoringSafeArea(.all)
+                        .onAppear {
+                            setupVideoPlayer()
+                        }
+                        .onDisappear {
+                            player.pause()
+                        }
+                }
             }
 
             VStack(spacing: 20) {
-                // Toggle for video mode
-                Button(action: {
-                    videoMode.toggle()
-                    if videoMode {
-                        player.play()
-                    } else {
-                        player.pause()
-                    }
-                }) {
-                    Text(videoMode ? "Camera" : "Video")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(Color.purple)
-                        .cornerRadius(10)
-                }
-                
-                // Opacity slider (only visible when video is active)
-                if videoMode {
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("Video Opacity: \(Int(videoOpacity * 100))%")
-                            .font(.subheadline)
+                // 使用opacity来控制按钮的显示和隐藏
+                Group {
+                    // Toggle for video mode
+                    Button(action: {
+                        videoMode.toggle()
+                        if videoMode {
+                            player.play()
+                        } else {
+                            player.pause()
+                        }
+                        resetButtonHideTimer() // 重置隐藏计时器
+                    }) {
+                        Text(videoMode ? "Camera" : "Video")
+                            .font(.headline)
                             .foregroundColor(.white)
-                            .padding(8)
-                            .background(Color.black.opacity(0.6))
-                            .cornerRadius(5)
-                        
-                        Slider(value: $videoOpacity, in: 0.1...1.0)
-                            .padding(.horizontal)
-                            .background(Color.black.opacity(0.6))
+                            .padding()
+                            .background(Color.purple)
                             .cornerRadius(10)
-                            .padding(.horizontal, 10)
                     }
-                    .padding(.vertical, 5)
+                    
+                    // Opacity slider (only visible when video is active)
+                    if videoMode {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("Video Opacity: \(Int(videoOpacity * 100))%")
+                                .font(.subheadline)
+                                .foregroundColor(.white)
+                                .padding(8)
+                                .background(Color.black.opacity(0.6))
+                                .cornerRadius(5)
+                            
+                            Slider(value: $videoOpacity, in: 0.1...1.0, onEditingChanged: { editing in
+                                if editing {
+                                    resetButtonHideTimer() // 滑动时重置计时器
+                                }
+                            })
+                                .padding(.horizontal)
+                                .background(Color.black.opacity(0.6))
+                                .cornerRadius(10)
+                                .padding(.horizontal, 10)
+                        }
+                        .padding(.vertical, 5)
+                    }
+                    
+                    // Start/Stop Button with dedicated logic.
+                    Button(action: {
+                        handleStartStop()
+                        resetButtonHideTimer() // 重置隐藏计时器
+                    }) {
+                        Text(eyeGazeActive ? "Stop" : "Start")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color.blue)
+                            .cornerRadius(10)
+                    }
+                    
+                    // Export Button: now disabled if the session is active or no data exists.
+                    Button(action: {
+                        handleExportTrajectory()
+                        resetButtonHideTimer() // 重置隐藏计时器
+                    }) {
+                        Text("Export Trajectory")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color.green)
+                            .cornerRadius(10)
+                            .opacity((eyeGazeActive || gazeTrajectory.isEmpty || !isValidTrajectory()) ? 0.5 : 1.0)
+                    }
+                    .disabled(eyeGazeActive || gazeTrajectory.isEmpty || !isValidTrajectory())
                 }
-                
-                // Start/Stop Button with dedicated logic.
-                Button(action: handleStartStop) {
-                    Text(eyeGazeActive ? "Stop" : "Start")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(Color.blue)
-                        .cornerRadius(10)
-                }
-
-                // Export Button: now disabled if the session is active or no data exists.
-                Button(action: handleExportTrajectory) {
-                    Text("Export Trajectory")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(Color.green)
-                        .cornerRadius(10)
-                        .opacity((eyeGazeActive || gazeTrajectory.isEmpty || !isValidTrajectory()) ? 0.5 : 1.0)
-                }
-                .disabled(eyeGazeActive || gazeTrajectory.isEmpty || !isValidTrajectory())
+                .opacity(showButtons ? 1 : 0) // 控制整个按钮组的透明度
             }
             .padding(.bottom, 50)
+            .opacity(showButtons ? 1 : 0) // 控制按钮组透明度
+            .animation(.easeInOut(duration: 0.3), value: showButtons) // 添加动画效果
             .alert(isPresented: $showExportAlert) {
                 Alert(title: Text("Export Completed"),
                       message: Text("Trajectory exported successfully."),
@@ -147,6 +170,11 @@ struct ContentView: View {
                     .position(lookAtPoint)
             }
         }
+        .onTapGesture {
+            // 点击屏幕时显示按钮并重置计时器
+            showButtons = true
+            resetButtonHideTimer()
+        }
         .onAppear {
             // 初始化视频播放器
             setupVideoPlayer()
@@ -159,12 +187,19 @@ struct ContentView: View {
                     self.interfaceOrientation = windowScene.interfaceOrientation
                 }
             }
+            
+            // 设置初始隐藏计时器
+            setupButtonHideTimer()
         }
         .onDisappear {
             // 移除方向变化通知监听
             NotificationCenter.default.removeObserver(self, 
                                                      name: UIDevice.orientationDidChangeNotification, 
                                                      object: nil)
+            
+            // 清除计时器
+            hideButtonsTimer?.invalidate()
+            hideButtonsTimer = nil
         }
     }
     
@@ -328,6 +363,31 @@ struct ContentView: View {
             }
         }
     }
+    
+    // MARK: - Button Visibility Management
+
+    /// 设置按钮隐藏计时器
+    private func setupButtonHideTimer() {
+        hideButtonsTimer?.invalidate()
+        hideButtonsTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+            withAnimation(.easeOut(duration: 0.5)) {
+                self.showButtons = false
+                // 如果在视频模式下，触发系统视频控制器的自动隐藏
+                if self.videoMode {
+                    self.player.play()
+                    self.player.pause()
+                    self.player.play()
+                }
+            }
+        }
+    }
+
+    /// 重置按钮隐藏计时器
+    private func resetButtonHideTimer() {
+        lastInteractionTime = Date()
+        showButtons = true
+        setupButtonHideTimer()
+    }
 }
 
 #if DEBUG
@@ -337,3 +397,63 @@ struct ContentView_Previews: PreviewProvider {
     }
 }
 #endif
+
+// 在文件底部修改 CustomVideoPlayer 的实现
+struct CustomVideoPlayer: UIViewControllerRepresentable {
+    let player: AVPlayer
+    @Binding var showButtons: Bool
+    
+    func makeUIViewController(context: Context) -> AVPlayerViewController {
+        let controller = AVPlayerViewController()
+        controller.player = player
+        controller.delegate = context.coordinator
+        
+        // 添加自定义手势识别器
+        let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
+        tapGesture.delegate = context.coordinator
+        controller.view.addGestureRecognizer(tapGesture)
+        
+        return controller
+    }
+    
+    func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
+        uiViewController.player = player
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, AVPlayerViewControllerDelegate, UIGestureRecognizerDelegate {
+        let parent: CustomVideoPlayer
+        
+        init(_ parent: CustomVideoPlayer) {
+            self.parent = parent
+            super.init()
+        }
+        
+        @objc func handleTap(_ gesture: UITapGestureRecognizer) {
+            let location = gesture.location(in: gesture.view)
+            let view = gesture.view!
+            
+            // 检查点击位置是否在底部控制区域
+            let bottomControlHeight = view.bounds.height * 0.15
+            let isInControlArea = location.y > (view.bounds.height - bottomControlHeight)
+            
+            if !isInControlArea {
+                DispatchQueue.main.async {
+                    self.parent.showButtons = true
+                    NotificationCenter.default.post(
+                        name: .init("ResetButtonTimer"),
+                        object: nil
+                    )
+                }
+            }
+        }
+        
+        // 允许手势识别器与系统手势共存
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            return true
+        }
+    }
+}
