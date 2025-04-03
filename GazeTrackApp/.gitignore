@@ -1,1 +1,28 @@
+# 视频文件
 *.mov
+*.mp4
+*.avi
+*.wmv
+
+# Xcode
+.DS_Store
+xcuserdata/
+*.xcuserstate
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+Packages/
+Package.pins
+Package.resolved
+
+# 其他大文件类型
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
