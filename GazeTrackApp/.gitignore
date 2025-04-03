@@ -14,6 +14,11 @@ DerivedData/
 *.dSYM.zip
 *.dSYM
 
+# 其他大文件
+*.zip
+*.rar
+*.tar.gz
+
 # Swift Package Manager
 .build/
 Packages/
