@@ -65,7 +65,7 @@ class CustomARView: ARView, ARSessionDelegate {
         detectEyebrowRaise(faceAnchor: faceAnchor)
     }
     
-    private func detectGazePoint(faceAnchor: ARFaceAnchor){
+    private func detectGazePoint(faceAnchor: ARFaceAnchor) {
         let lookAtPoint = faceAnchor.lookAtPoint
         
         guard let cameraTransform = session.currentFrame?.camera.transform else {
@@ -90,44 +90,47 @@ class CustomARView: ARView, ARSessionDelegate {
         
         switch interfaceOrientation {
         case .landscapeLeft:
-            // 横屏左模式 - 调整x和y的映射关系
-            screenX = transformedLookAtPoint.x
-            screenY = -transformedLookAtPoint.y
+            // 横屏左模式下的坐标映射
+            screenX = transformedLookAtPoint.x / (Float(Device.screenSize.height) / 2) * Float(Device.frameSize.height)
+            screenY = -transformedLookAtPoint.y / (Float(Device.screenSize.width) / 2) * Float(Device.frameSize.width)  // 需要取反
             
-            // 应用适当的缩放和偏移
-            screenX = (screenX + 1) / 2 * screenWidth
-            screenY = (screenY + 1) / 2 * screenHeight
+            // // 调整映射关系
+            // let tempX = screenX
+            // screenX = screenY                // Y轴直接变成X轴（方向已经正确）
+            // screenY = tempX                  // X轴变成Y轴
             
+                    
         case .landscapeRight:
-            // 横屏右模式 - 调整x和y的映射关系
-            screenX = -transformedLookAtPoint.x
-            screenY = transformedLookAtPoint.y
-            
-            // 应用适当的缩放和偏移
-            screenX = (screenX + 1) / 2 * screenWidth
-            screenY = (screenY + 1) / 2 * screenHeight
+            // 横屏右模式下的坐标映射
+            screenX = -transformedLookAtPoint.x / (Float(Device.screenSize.height) / 2) * Float(Device.frameSize.height)
+            screenY = transformedLookAtPoint.y / (Float(Device.screenSize.width) / 2) * Float(Device.frameSize.width) 
             
         default:
-            // 竖屏模式下的原始计算
+            // 竖屏模式保持不变
             screenX = transformedLookAtPoint.y / (Float(Device.screenSize.width) / 2) * Float(Device.frameSize.width)
             screenY = transformedLookAtPoint.x / (Float(Device.screenSize.height) / 2) * Float(Device.frameSize.height)
         }
         
-        // 创建适当的范围限制
-        let widthRange: ClosedRange<CGFloat>
-        let heightRange: ClosedRange<CGFloat>
+        // 根据屏幕方向设置范围限制
+        let xRange: ClosedRange<CGFloat>
+        let yRange: ClosedRange<CGFloat>
         
         if interfaceOrientation.isLandscape {
-            widthRange = 0...CGFloat(screenWidth)
-            heightRange = 0...CGFloat(screenHeight)
+            xRange = 0...CGFloat(screenHeight)
+            yRange = 0...CGFloat(screenWidth)
+            print("isLandscape: \(interfaceOrientation.isLandscape)", "xRange: \(xRange)")
+            print("isLandscape: \(interfaceOrientation.isLandscape)", "yRange: \(yRange)")
         } else {
-            widthRange = Ranges.widthRange
-            heightRange = Ranges.heightRange
+            xRange = 0...CGFloat(screenWidth)
+            yRange = 0...CGFloat(screenHeight)
+            print("isLandscape: \(interfaceOrientation.isLandscape)", "xRange: \(xRange)")
+            print("isLandscape: \(interfaceOrientation.isLandscape)", "yRange: \(yRange)")
         }
         
+        // 使用 Ranges 结构体处理不同方向的范围限制
         let focusPoint = CGPoint(
-            x: CGFloat(screenX).clamped(to: widthRange),
-            y: CGFloat(screenY).clamped(to: heightRange)
+            x: CGFloat(screenX).clamped(to: Ranges.widthRange),
+            y: CGFloat(screenY).clamped(to: Ranges.heightRange)
         )
         
         DispatchQueue.main.async {
