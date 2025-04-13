@@ -38,6 +38,9 @@ struct ContentView: View {
     @State private var lastInteractionTime: Date = Date()
     @State private var hideButtonsTimer: Timer? = nil
     
+    // 添加眼动轨迹图相关状态
+    @State private var showTrajectoryView: Bool = false
+    
     var body: some View {
         ZStack(alignment: .bottom) {
             // Reference the CustomARViewContainer from its separate file.
@@ -140,6 +143,21 @@ struct ContentView: View {
                             .opacity((eyeGazeActive || gazeTrajectory.isEmpty || !isValidTrajectory()) ? 0.5 : 1.0)
                     }
                     .disabled(eyeGazeActive || gazeTrajectory.isEmpty || !isValidTrajectory())
+                    
+                    // 添加显示轨迹图按钮
+                    Button(action: {
+                        showTrajectoryView.toggle()
+                        resetButtonHideTimer() // 重置隐藏计时器
+                    }) {
+                        Text("Show Trajectory")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color.orange)
+                            .cornerRadius(10)
+                            .opacity((eyeGazeActive || gazeTrajectory.isEmpty || !isValidTrajectory()) ? 0.5 : 1.0)
+                    }
+                    .disabled(eyeGazeActive || gazeTrajectory.isEmpty || !isValidTrajectory())
                 }
                 .opacity(showButtons ? 1 : 0) // 控制整个按钮组的透明度
             }
@@ -150,6 +168,40 @@ struct ContentView: View {
                 Alert(title: Text("Export Completed"),
                       message: Text("Trajectory exported successfully."),
                       dismissButton: .default(Text("OK")))
+            }
+
+            // 添加轨迹可视化视图
+            if showTrajectoryView && !gazeTrajectory.isEmpty {
+                ZStack {
+                    // 白色背景
+                    Color.white.edgesIgnoringSafeArea(.all)
+                    
+                    // 轨迹可视化
+                    TrajectoryVisualizationView(
+                        gazeTrajectory: gazeTrajectory,
+                        opacity: 1.0, // 固定不透明度为1.0，不再使用可变的透明度
+                        screenSize: UIScreen.main.bounds.size
+                    )
+                    
+                    // 关闭按钮
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Button(action: {
+                                showTrajectoryView = false
+                            }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.black)
+                                    .padding()
+                            }
+                        }
+                        Spacer()
+                    }
+                    
+                    // 移除透明度控制滑块
+                }
+                .zIndex(100) // 确保显示在最上层
             }
 
             // 添加倒计时显示
