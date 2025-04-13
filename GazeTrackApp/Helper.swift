@@ -33,11 +33,21 @@ struct Device {
         return CGSize(width: UIScreen.main.bounds.size.width,
                       height: UIScreen.main.bounds.size.height - 82)
     }
+    
+    // 获取当前界面方向的辅助方法
+    static func getCurrentOrientation() -> UIInterfaceOrientation {
+        // 使用新的API获取界面方向
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+            return windowScene.interfaceOrientation
+        }
+        return .portrait
+    }
 }
 
 struct Ranges {
     static var widthRange: ClosedRange<CGFloat> {
-        let interfaceOrientation = UIApplication.shared.windows.first?.windowScene?.interfaceOrientation ?? .portrait
+        // 使用新方法获取界面方向
+        let interfaceOrientation = Device.getCurrentOrientation()
         
         if interfaceOrientation.isLandscape {
             return (0...UIScreen.main.bounds.height - 82)  // 横屏时左右需要考虑系统UI偏移
@@ -47,7 +57,8 @@ struct Ranges {
     }
     
     static var heightRange: ClosedRange<CGFloat> {
-        let interfaceOrientation = UIApplication.shared.windows.first?.windowScene?.interfaceOrientation ?? .portrait
+        // 使用新方法获取界面方向
+        let interfaceOrientation = Device.getCurrentOrientation()
         
         if interfaceOrientation.isLandscape {
             return (0...UIScreen.main.bounds.width)  // 横屏时上下不需要偏移

@@ -76,8 +76,13 @@ class CustomARView: ARView, ARSessionDelegate {
         
         let transformedLookAtPoint = simd_mul(simd_inverse(cameraTransform), lookAtPointInWorld)
         
-        // 获取界面方向
-        let interfaceOrientation = UIApplication.shared.windows.first?.windowScene?.interfaceOrientation ?? .portrait
+        // 获取界面方向 - 使用更新的API
+        let interfaceOrientation: UIInterfaceOrientation
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+            interfaceOrientation = windowScene.interfaceOrientation
+        } else {
+            interfaceOrientation = .portrait
+        }
         
         // 根据界面方向调整坐标计算
         var screenX: Float = 0
