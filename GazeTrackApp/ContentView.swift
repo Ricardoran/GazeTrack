@@ -49,20 +49,23 @@ struct ContentView: View {
                                   isWinking: $isWinking)
                 .onReceive(timerPublisher) { _ in
                     if eyeGazeActive && !isCountingDown,
-                       let point = lookAtPoint,
-                       let startTime = recordingStartTime {
+                        let point = lookAtPoint,
+                        let startTime = recordingStartTime {
                         let elapsedTime = Date().timeIntervalSince(startTime)
                         let gazeData = GazeData(elapsedTime: elapsedTime, x: point.x, y: point.y)
                         gazeTrajectory.append(gazeData)
                     }
+                }.onAppear {
+                    Device.printScreenSize()
                 }
+                .edgesIgnoringSafeArea(.all)
             
             // Video player when in video mode
             if videoMode {
                 ZStack {
                     CustomVideoPlayer(player: player, showButtons: $showButtons)
                         .opacity(videoOpacity)
-                        .edgesIgnoringSafeArea(.all)
+                        // .edgesIgnoringSafeArea(.all)
                         .onAppear {
                             setupVideoPlayer()
                         }
@@ -174,7 +177,8 @@ struct ContentView: View {
             if showTrajectoryView && !gazeTrajectory.isEmpty {
                 ZStack {
                     // 白色背景
-                    Color.white.edgesIgnoringSafeArea(.all)
+                    // Color.white.edgesIgnoringSafeArea(.all)
+                    Color.white
                     
                     // 轨迹可视化
                     TrajectoryVisualizationView(

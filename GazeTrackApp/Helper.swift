@@ -28,10 +28,15 @@ struct Device {
                       height: (screenHeightPixel / ppi) / b_ratio)
     }
     
+    // 添加打印屏幕尺寸的函数
+    static func printScreenSize() {
+        print("屏幕尺寸: 宽度 = \(UIScreen.main.bounds.size.width), 高度 = \(UIScreen.main.bounds.size.height)")
+    }
+    
     // You might update the frameSize if needed; this one remains similar to the original.
     static var frameSize: CGSize {  // iPhone XR frame size example; adjust if needed for iPhone 14 Pro.
         return CGSize(width: UIScreen.main.bounds.size.width,
-                      height: UIScreen.main.bounds.size.height - 82)
+                      height: UIScreen.main.bounds.size.height)
     }
     
     // 获取当前界面方向的辅助方法
@@ -42,28 +47,46 @@ struct Device {
         }
         return .portrait
     }
+    
+    // 获取安全区域的尺寸
+    static func getSafeAreaInsets() -> UIEdgeInsets {
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first {
+            return window.safeAreaInsets
+        }
+        return UIEdgeInsets.zero
+    }
+    
+    // 获取考虑安全区域的屏幕尺寸
+    static var safeFrameSize: CGSize {
+        let safeAreaInsets = getSafeAreaInsets()
+        return CGSize(
+            width: UIScreen.main.bounds.size.width - safeAreaInsets.left - safeAreaInsets.right,
+            height: UIScreen.main.bounds.size.height - safeAreaInsets.top - safeAreaInsets.bottom
+        )
+    }
 }
 
 struct Ranges {
     static var widthRange: ClosedRange<CGFloat> {
-        // 使用新方法获取界面方向
         let interfaceOrientation = Device.getCurrentOrientation()
+        let safeAreaInsets = Device.getSafeAreaInsets()
         
         if interfaceOrientation.isLandscape {
-            return (0...UIScreen.main.bounds.height - 82)  // 横屏时左右需要考虑系统UI偏移
+            return (safeAreaInsets.left...(UIScreen.main.bounds.height - safeAreaInsets.right))
         } else {
-            return (0...UIScreen.main.bounds.width)  // 竖屏时宽度不需要偏移
+            return (safeAreaInsets.left...(UIScreen.main.bounds.width - safeAreaInsets.right))
         }
     }
     
     static var heightRange: ClosedRange<CGFloat> {
-        // 使用新方法获取界面方向
         let interfaceOrientation = Device.getCurrentOrientation()
+        let safeAreaInsets = Device.getSafeAreaInsets()
         
         if interfaceOrientation.isLandscape {
-            return (0...UIScreen.main.bounds.width)  // 横屏时上下不需要偏移
+            return (safeAreaInsets.top...(UIScreen.main.bounds.width - safeAreaInsets.bottom))
         } else {
-            return (0...UIScreen.main.bounds.height - 82)  // 竖屏时需要考虑顶部和底部系统UI偏移
+            return (safeAreaInsets.top...(UIScreen.main.bounds.height - safeAreaInsets.bottom))
         }
     }
 }

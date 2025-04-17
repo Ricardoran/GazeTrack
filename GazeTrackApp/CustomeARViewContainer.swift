@@ -59,7 +59,7 @@ class CustomARView: ARView, ARSessionDelegate {
         // eyeGazeActive.toggle()
         
         /// 2. Detect winks
-         detectWink(faceAnchor: faceAnchor)
+        detectWink(faceAnchor: faceAnchor)
         
         /// 3. Detect eyebrow raise
         detectEyebrowRaise(faceAnchor: faceAnchor)
@@ -84,6 +84,9 @@ class CustomARView: ARView, ARSessionDelegate {
             interfaceOrientation = .portrait
         }
         
+        // 获取安全区域
+        let safeAreaInsets = getSafeAreaInsets()
+        
         // 根据界面方向调整坐标计算
         var screenX: Float = 0
         var screenY: Float = 0
@@ -92,55 +95,54 @@ class CustomARView: ARView, ARSessionDelegate {
         let screenBounds = UIScreen.main.bounds
         let screenWidth = Float(screenBounds.width)
         let screenHeight = Float(screenBounds.height)
-        
+                
         switch interfaceOrientation {
         case .landscapeLeft:
             // 横屏左模式下的坐标映射
             screenX = transformedLookAtPoint.x / (Float(Device.screenSize.height) / 2) * Float(Device.frameSize.height)
             screenY = -transformedLookAtPoint.y / (Float(Device.screenSize.width) / 2) * Float(Device.frameSize.width)  // 需要取反
             
-            // // 调整映射关系
-            // let tempX = screenX
-            // screenX = screenY                // Y轴直接变成X轴（方向已经正确）
-            // screenY = tempX                  // X轴变成Y轴
-            
-                    
         case .landscapeRight:
             // 横屏右模式下的坐标映射
             screenX = -transformedLookAtPoint.x / (Float(Device.screenSize.height) / 2) * Float(Device.frameSize.height)
             screenY = transformedLookAtPoint.y / (Float(Device.screenSize.width) / 2) * Float(Device.frameSize.width) 
             
         default:
-            // 竖屏模式保持不变
+            // 竖屏模式保持不变，我们其实只会用到竖屏模式！
             screenX = transformedLookAtPoint.y / (Float(Device.screenSize.width) / 2) * Float(Device.frameSize.width)
             screenY = transformedLookAtPoint.x / (Float(Device.screenSize.height) / 2) * Float(Device.frameSize.height)
         }
         
-        // 根据屏幕方向设置范围限制
+        // 使用安全区域调整范围限制
         let xRange: ClosedRange<CGFloat>
         let yRange: ClosedRange<CGFloat>
         
         if interfaceOrientation.isLandscape {
-            xRange = 0...CGFloat(screenHeight)
-            yRange = 0...CGFloat(screenWidth)
-            print("isLandscape: \(interfaceOrientation.isLandscape)", "xRange: \(xRange)")
-            print("isLandscape: \(interfaceOrientation.isLandscape)", "yRange: \(yRange)")
+            xRange = CGFloat(safeAreaInsets.left)...CGFloat(screenHeight) - CGFloat(safeAreaInsets.right)
+            yRange = CGFloat(safeAreaInsets.top)...CGFloat(screenWidth) - CGFloat(safeAreaInsets.bottom)
         } else {
-            xRange = 0...CGFloat(screenWidth)
-            yRange = 0...CGFloat(screenHeight)
-            print("isLandscape: \(interfaceOrientation.isLandscape)", "xRange: \(xRange)")
-            print("isLandscape: \(interfaceOrientation.isLandscape)", "yRange: \(yRange)")
+            xRange = CGFloat(safeAreaInsets.left)...CGFloat(screenWidth) - CGFloat(safeAreaInsets.right)
+            yRange = CGFloat(safeAreaInsets.top)...CGFloat(screenHeight) - CGFloat(safeAreaInsets.bottom)
         }
         
-        // 使用 Ranges 结构体处理不同方向的范围限制
+        // 使用安全区域范围限制
         let focusPoint = CGPoint(
-            x: CGFloat(screenX).clamped(to: Ranges.widthRange),
-            y: CGFloat(screenY).clamped(to: Ranges.heightRange)
+            x: CGFloat(screenX).clamped(to: xRange),
+            y: CGFloat(screenY).clamped(to: yRange)
         )
         
         DispatchQueue.main.async {
             self.lookAtPoint = focusPoint
         }
+    }
+    
+    // 获取安全区域插入值
+    private func getSafeAreaInsets() -> UIEdgeInsets {
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first {
+            return window.safeAreaInsets
+        }
+        return UIEdgeInsets.zero
     }
     
     private func detectWink(faceAnchor: ARFaceAnchor) {
