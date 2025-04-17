@@ -13,7 +13,6 @@ import ARKit
 import RealityKit
 
 struct CustomARViewContainer: UIViewRepresentable {
-    
     @Binding var eyeGazeActive: Bool
     @Binding var lookAtPoint: CGPoint?
     @Binding var isWinking: Bool
@@ -25,9 +24,7 @@ struct CustomARViewContainer: UIViewRepresentable {
     func updateUIView(_ uiView: CustomARView, context: Context) {}
 }
 
-
 class CustomARView: ARView, ARSessionDelegate {
-    
     @Binding var eyeGazeActive: Bool
     @Binding var lookAtPoint: CGPoint?
     @Binding var isWinking: Bool
@@ -36,32 +33,19 @@ class CustomARView: ARView, ARSessionDelegate {
         _eyeGazeActive = eyeGazeActive
         _lookAtPoint = lookAtPoint
         _isWinking = isWinking
-        
         super.init(frame: .zero)
-        
-    //    self.debugOptions = [.showAnchorOrigins]
-        
         self.session.delegate = self
-        
         let configuration = ARFaceTrackingConfiguration()
         self.session.run(configuration)
     }
     
-    
     func session(_ session: ARSession, didUpdate anchors: [ARAnchor]) {
-        
         guard eyeGazeActive, let faceAnchor = anchors.compactMap({ $0 as? ARFaceAnchor }).first else {
             return
         }
         
-        /// 1. Locate Gaze point
         detectGazePoint(faceAnchor: faceAnchor)
-        // eyeGazeActive.toggle()
-        
-        /// 2. Detect winks
         detectWink(faceAnchor: faceAnchor)
-        
-        /// 3. Detect eyebrow raise
         detectEyebrowRaise(faceAnchor: faceAnchor)
     }
     
@@ -73,62 +57,22 @@ class CustomARView: ARView, ARSessionDelegate {
         }
         
         let lookAtPointInWorld = faceAnchor.transform * simd_float4(lookAtPoint, 1)
-        
         let transformedLookAtPoint = simd_mul(simd_inverse(cameraTransform), lookAtPointInWorld)
-        
-        // 获取界面方向 - 使用更新的API
-        let interfaceOrientation: UIInterfaceOrientation
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-            interfaceOrientation = windowScene.interfaceOrientation
-        } else {
-            interfaceOrientation = .portrait
-        }
         
         // 获取安全区域
         let safeAreaInsets = getSafeAreaInsets()
         
-        // 根据界面方向调整坐标计算
-        var screenX: Float = 0
-        var screenY: Float = 0
+        // 计算屏幕坐标（仅竖屏模式）
+        let screenX = transformedLookAtPoint.y / (Float(Device.screenSize.width) / 2) * Float(Device.frameSize.width)
+        let screenY = transformedLookAtPoint.x / (Float(Device.screenSize.height) / 2) * Float(Device.frameSize.height)
         
-        // 获取屏幕尺寸
-        let screenBounds = UIScreen.main.bounds
-        let screenWidth = Float(screenBounds.width)
-        let screenHeight = Float(screenBounds.height)
-                
-        switch interfaceOrientation {
-        case .landscapeLeft:
-            // 横屏左模式下的坐标映射
-            screenX = transformedLookAtPoint.x / (Float(Device.screenSize.height) / 2) * Float(Device.frameSize.height)
-            screenY = -transformedLookAtPoint.y / (Float(Device.screenSize.width) / 2) * Float(Device.frameSize.width)  // 需要取反
-            
-        case .landscapeRight:
-            // 横屏右模式下的坐标映射
-            screenX = -transformedLookAtPoint.x / (Float(Device.screenSize.height) / 2) * Float(Device.frameSize.height)
-            screenY = transformedLookAtPoint.y / (Float(Device.screenSize.width) / 2) * Float(Device.frameSize.width) 
-            
-        default:
-            // 竖屏模式保持不变，我们其实只会用到竖屏模式！
-            screenX = transformedLookAtPoint.y / (Float(Device.screenSize.width) / 2) * Float(Device.frameSize.width)
-            screenY = transformedLookAtPoint.x / (Float(Device.screenSize.height) / 2) * Float(Device.frameSize.height)
-        }
+        // // 使用安全区域范围限制
+        // let xRange = CGFloat(safeAreaInsets.left)...CGFloat(UIScreen.main.bounds.width - safeAreaInsets.right)
+        // let yRange = CGFloat(safeAreaInsets.top)...CGFloat(UIScreen.main.bounds.height - safeAreaInsets.bottom)
         
-        // 使用安全区域调整范围限制
-        let xRange: ClosedRange<CGFloat>
-        let yRange: ClosedRange<CGFloat>
-        
-        if interfaceOrientation.isLandscape {
-            xRange = CGFloat(safeAreaInsets.left)...CGFloat(screenHeight) - CGFloat(safeAreaInsets.right)
-            yRange = CGFloat(safeAreaInsets.top)...CGFloat(screenWidth) - CGFloat(safeAreaInsets.bottom)
-        } else {
-            xRange = CGFloat(safeAreaInsets.left)...CGFloat(screenWidth) - CGFloat(safeAreaInsets.right)
-            yRange = CGFloat(safeAreaInsets.top)...CGFloat(screenHeight) - CGFloat(safeAreaInsets.bottom)
-        }
-        
-        // 使用安全区域范围限制
         let focusPoint = CGPoint(
-            x: CGFloat(screenX).clamped(to: xRange),
-            y: CGFloat(screenY).clamped(to: yRange)
+            x: CGFloat(screenX).clamped(to: Ranges.widthRange),
+            y: CGFloat(screenY).clamped(to: Ranges.heightRange)
         )
         
         DispatchQueue.main.async {
@@ -136,7 +80,6 @@ class CustomARView: ARView, ARSessionDelegate {
         }
     }
     
-    // 获取安全区域插入值
     private func getSafeAreaInsets() -> UIEdgeInsets {
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let window = windowScene.windows.first {
@@ -146,32 +89,18 @@ class CustomARView: ARView, ARSessionDelegate {
     }
     
     private func detectWink(faceAnchor: ARFaceAnchor) {
-        
         let blendShapes = faceAnchor.blendShapes
         
         if let leftEyeBlink = blendShapes[.eyeBlinkLeft] as? Float,
            let rightEyeBlink = blendShapes[.eyeBlinkRight] as? Float {
-            if leftEyeBlink > 0.9 && rightEyeBlink > 0.9 {
-                isWinking = true
-            } else {
-                isWinking = false
-            }
+            isWinking = leftEyeBlink > 0.9 && rightEyeBlink > 0.9
         }
     }
     
-    private func detectEyebrowRaise(faceAnchor: ARFaceAnchor){
-        
+    private func detectEyebrowRaise(faceAnchor: ARFaceAnchor) {
         let browInnerUp = faceAnchor.blendShapes[.browInnerUp] as? Float ?? 0.0
-        
         let eyebrowRaiseThreshold: Float = 0.1
-        
-        let isEyebrowRaised = browInnerUp > eyebrowRaiseThreshold
-        
-        if isEyebrowRaised {
-            isWinking = true
-        }else{
-            isWinking = false
-        }
+        isWinking = browInnerUp > eyebrowRaiseThreshold
     }
     
     @MainActor required dynamic init?(coder decoder: NSCoder) {

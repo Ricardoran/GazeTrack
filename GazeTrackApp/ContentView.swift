@@ -58,7 +58,7 @@ struct ContentView: View {
                 }.onAppear {
                     Device.printScreenSize()
                 }
-                .edgesIgnoringSafeArea(.all)
+                // .edgesIgnoringSafeArea(.all)
             
             // Video player when in video mode
             if videoMode {

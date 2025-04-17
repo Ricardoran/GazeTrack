@@ -47,7 +47,7 @@ struct TrajectoryVisualizationView: View {
                 Spacer()
             }
         }
-        .edgesIgnoringSafeArea(.all)
+        // .edgesIgnoringSafeArea(.all)
     }
     
     // 根据点的位置获取颜色（从蓝色渐变到红色）

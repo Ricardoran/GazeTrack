@@ -31,21 +31,15 @@ struct Device {
     // 添加打印屏幕尺寸的函数
     static func printScreenSize() {
         print("屏幕尺寸: 宽度 = \(UIScreen.main.bounds.size.width), 高度 = \(UIScreen.main.bounds.size.height)")
+        print("宽度范围: \(Ranges.widthRange)", "高度范围: \(Ranges.heightRange)")
+        print("Safe Frame尺寸: \(safeFrameSize)")
     }
     
-    // You might update the frameSize if needed; this one remains similar to the original.
-    static var frameSize: CGSize {  // iPhone XR frame size example; adjust if needed for iPhone 14 Pro.
+    // 竖屏模式下的屏幕尺寸
+    static var frameSize: CGSize {
+        let safeAreaInsets = getSafeAreaInsets()
         return CGSize(width: UIScreen.main.bounds.size.width,
-                      height: UIScreen.main.bounds.size.height)
-    }
-    
-    // 获取当前界面方向的辅助方法
-    static func getCurrentOrientation() -> UIInterfaceOrientation {
-        // 使用新的API获取界面方向
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-            return windowScene.interfaceOrientation
-        }
-        return .portrait
+                      height: UIScreen.main.bounds.size.height - safeAreaInsets.top - safeAreaInsets.bottom)
     }
     
     // 获取安全区域的尺寸
@@ -68,26 +62,17 @@ struct Device {
 }
 
 struct Ranges {
+    // 竖屏模式下的宽度范围
     static var widthRange: ClosedRange<CGFloat> {
-        let interfaceOrientation = Device.getCurrentOrientation()
         let safeAreaInsets = Device.getSafeAreaInsets()
-        
-        if interfaceOrientation.isLandscape {
-            return (safeAreaInsets.left...(UIScreen.main.bounds.height - safeAreaInsets.right))
-        } else {
-            return (safeAreaInsets.left...(UIScreen.main.bounds.width - safeAreaInsets.right))
-        }
+        return (safeAreaInsets.left...(UIScreen.main.bounds.width - safeAreaInsets.right))
     }
-    
+    // 竖屏模式下的高度范围
     static var heightRange: ClosedRange<CGFloat> {
-        let interfaceOrientation = Device.getCurrentOrientation()
-        let safeAreaInsets = Device.getSafeAreaInsets()
-        
-        if interfaceOrientation.isLandscape {
-            return (safeAreaInsets.top...(UIScreen.main.bounds.width - safeAreaInsets.bottom))
-        } else {
-            return (safeAreaInsets.top...(UIScreen.main.bounds.height - safeAreaInsets.bottom))
-        }
+        // let safeAreaInsets = Device.getSafeAreaInsets()
+        // return (safeAreaInsets.top...(UIScreen.main.bounds.height - safeAreaInsets.bottom))
+        // return (safeAreaInsets.top...(UIScreen.main.bounds.height - safeAreaInsets.bottom))
+        return 0.0...Device.frameSize.height
     }
 }
 
