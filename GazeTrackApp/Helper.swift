@@ -14,10 +14,20 @@ struct Device {
         let screenHeightPixel: CGFloat = UIScreen.main.nativeBounds.height
         
         // Updated PPI for iPhone 14 Pro
-        let ppi: CGFloat = 460
+        // let ppi: CGFloat = 460
         
-        let a_ratio = (screenWidthPixel / ppi) / 0.0651318
-        let b_ratio = (screenHeightPixel / ppi) / 0.1412057
+        // actual screen size in meters for iphone 14 pro 6.1 inch
+        // let screenWidthInMeter = 0.0651318
+        // let screenHeightInMeter = 0.1412057
+
+        // Updated PPI for iPad air 4
+        let ppi: CGFloat = 264
+        // actual screen size in meters for ipad air 4 10.9 inch
+        let screenWidthInMeter = 0.159778
+        let screenHeightInMeter = 0.229921
+
+        let a_ratio = (screenWidthPixel / ppi) / screenWidthInMeter
+        let b_ratio = (screenHeightPixel / ppi) / screenHeightInMeter
 
         return CGSize(width: (screenWidthPixel / ppi) / a_ratio,
                       height: (screenHeightPixel / ppi) / b_ratio)
