@@ -1,4 +1,3 @@
-//
 //  Helper.swift
 //  GazeTrackApp
 //
@@ -17,12 +16,8 @@ struct Device {
         // Updated PPI for iPhone 14 Pro
         let ppi: CGFloat = 460
         
-        // Updated calibration ratios for iPhone 14 Pro:
-        // Using a reference resolution of 1179 x 2556 (portrait mode)
-        // Normalization factor (458) and measured calibration constants remain unchanged,
-        // resulting in ratios of approximately 41.3.
-        let a_ratio = (1179 / 458) / 0.0623908297
-        let b_ratio = (2556 / 458) / 0.135096943231532
+        let a_ratio = (screenWidthPixel / ppi) / 0.0651318
+        let b_ratio = (screenHeightPixel / ppi) / 0.1412057
 
         return CGSize(width: (screenWidthPixel / ppi) / a_ratio,
                       height: (screenHeightPixel / ppi) / b_ratio)
@@ -30,9 +25,12 @@ struct Device {
     
     // 添加打印屏幕尺寸的函数
     static func printScreenSize() {
+        print("设备尺寸", Device.screenSize)
+        print("屏幕分辨率:",UIScreen.main.nativeBounds.width, UIScreen.main.nativeBounds.height)
         print("屏幕尺寸: 宽度 = \(UIScreen.main.bounds.size.width), 高度 = \(UIScreen.main.bounds.size.height)")
         print("宽度范围: \(Ranges.widthRange)", "高度范围: \(Ranges.heightRange)")
         print("Safe Frame尺寸: \(safeFrameSize)")
+        print("UIScreen.main.scale", UIScreen.main.scale)
     }
     
     // 竖屏模式下的屏幕尺寸
@@ -69,9 +67,6 @@ struct Ranges {
     }
     // 竖屏模式下的高度范围
     static var heightRange: ClosedRange<CGFloat> {
-        // let safeAreaInsets = Device.getSafeAreaInsets()
-        // return (safeAreaInsets.top...(UIScreen.main.bounds.height - safeAreaInsets.bottom))
-        // return (safeAreaInsets.top...(UIScreen.main.bounds.height - safeAreaInsets.bottom))
         return 0.0...Device.frameSize.height
     }
 }

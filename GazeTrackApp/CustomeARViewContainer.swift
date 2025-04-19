@@ -50,25 +50,22 @@ class CustomARView: ARView, ARSessionDelegate {
     }
     
     private func detectGazePoint(faceAnchor: ARFaceAnchor) {
+        // get the lookAtPoint from faceAnchor local coordinate
         let lookAtPoint = faceAnchor.lookAtPoint
         
         guard let cameraTransform = session.currentFrame?.camera.transform else {
             return
         }
         
+        // convert the lookAtPoint from local coordinate into world coordinate
         let lookAtPointInWorld = faceAnchor.transform * simd_float4(lookAtPoint, 1)
-        let transformedLookAtPoint = simd_mul(simd_inverse(cameraTransform), lookAtPointInWorld)
+
+        // convert the lookAtPoint from world coordinate into camera coordinate
+        let lookAtPointInCamera = simd_mul(simd_inverse(cameraTransform), lookAtPointInWorld)
         
-        // 获取安全区域
-        let safeAreaInsets = getSafeAreaInsets()
-        
-        // 计算屏幕坐标（仅竖屏模式）
-        let screenX = transformedLookAtPoint.y / (Float(Device.screenSize.width) / 2) * Float(Device.frameSize.width)
-        let screenY = transformedLookAtPoint.x / (Float(Device.screenSize.height) / 2) * Float(Device.frameSize.height)
-        
-        // // 使用安全区域范围限制
-        // let xRange = CGFloat(safeAreaInsets.left)...CGFloat(UIScreen.main.bounds.width - safeAreaInsets.right)
-        // let yRange = CGFloat(safeAreaInsets.top)...CGFloat(UIScreen.main.bounds.height - safeAreaInsets.bottom)
+        // 计算focus point在手机屏幕的坐标（仅竖屏模式）
+        let screenX = lookAtPointInCamera.y / (Float(Device.screenSize.width) / 2) * Float(Device.frameSize.width)
+        let screenY = lookAtPointInCamera.x / (Float(Device.screenSize.height) / 2) * Float(Device.frameSize.height)
         
         let focusPoint = CGPoint(
             x: CGFloat(screenX).clamped(to: Ranges.widthRange),
@@ -79,14 +76,7 @@ class CustomARView: ARView, ARSessionDelegate {
             self.lookAtPoint = focusPoint
         }
     }
-    
-    private func getSafeAreaInsets() -> UIEdgeInsets {
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let window = windowScene.windows.first {
-            return window.safeAreaInsets
-        }
-        return UIEdgeInsets.zero
-    }
+
     
     private func detectWink(faceAnchor: ARFaceAnchor) {
         let blendShapes = faceAnchor.blendShapes
