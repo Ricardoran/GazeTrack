@@ -41,12 +41,16 @@ struct ContentView: View {
     // 添加眼动轨迹图相关状态
     @State private var showTrajectoryView: Bool = false
     
+    @StateObject private var calibrationManager = CalibrationManager()
+    
     var body: some View {
         ZStack(alignment: .bottom) {
-            // Reference the CustomARViewContainer from its separate file.
-            CustomARViewContainer(eyeGazeActive: $eyeGazeActive,
-                                  lookAtPoint: $lookAtPoint,
-                                  isWinking: $isWinking)
+            CustomARViewContainer(
+                eyeGazeActive: $eyeGazeActive,
+                lookAtPoint: $lookAtPoint,
+                isWinking: $isWinking,
+                calibrationManager: calibrationManager
+            )
                 .onReceive(timerPublisher) { _ in
                     if eyeGazeActive && !isCountingDown,
                         let point = lookAtPoint,
@@ -75,9 +79,30 @@ struct ContentView: View {
                 }
             }
 
+            // 添加校准点视图
+            if calibrationManager.isCalibrating && calibrationManager.showCalibrationPoint,
+               let calibrationPoint = calibrationManager.currentCalibrationPoint {
+                Circle()
+                    .fill(Color.blue)
+                    .frame(width: 30, height: 30)
+                    .position(calibrationPoint)
+                    .transition(.scale.combined(with: .opacity))
+                    .animation(.easeInOut(duration: 0.3), value: calibrationManager.currentPointIndex)
+            }
+
             VStack(spacing: 20) {
                 // 使用opacity来控制按钮的显示和隐藏
                 Group {
+                    // Start Calibration Button
+                    Button("Start Calibration") {
+                        handleCalibration()
+                    }
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding()
+                    .background(Color.red)
+                    .cornerRadius(10)
+                    .opacity(showButtons ? 1 : 0)
                     // Toggle for video mode
                     Button(action: {
                         videoMode.toggle()
@@ -95,7 +120,6 @@ struct ContentView: View {
                             .background(Color.purple)
                             .cornerRadius(10)
                     }
-                    
                     // Opacity slider (only visible when video is active)
                     if videoMode {
                         VStack(alignment: .leading, spacing: 5) {
@@ -236,8 +260,8 @@ struct ContentView: View {
             setupVideoPlayer()
             
             // 添加方向变化通知监听
-            NotificationCenter.default.addObserver(forName: UIDevice.orientationDidChangeNotification, 
-                                                  object: nil, 
+            NotificationCenter.default.addObserver(forName: UIDevice.orientationDidChangeNotification,
+                                                  object: nil,
                                                   queue: .main) { _ in
                 if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
                     self.interfaceOrientation = windowScene.interfaceOrientation
@@ -249,8 +273,8 @@ struct ContentView: View {
         }
         .onDisappear {
             // 移除方向变化通知监听
-            NotificationCenter.default.removeObserver(self, 
-                                                     name: UIDevice.orientationDidChangeNotification, 
+            NotificationCenter.default.removeObserver(self,
+                                                     name: UIDevice.orientationDidChangeNotification,
                                                      object: nil)
             
             // 清除计时器
@@ -275,8 +299,8 @@ struct ContentView: View {
         }
         
         // Set up looping
-        NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, 
-                                              object: player.currentItem, 
+        NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime,
+                                              object: player.currentItem,
                                               queue: .main) { _ in
             player.seek(to: CMTime.zero)
             player.play()
@@ -342,6 +366,10 @@ struct ContentView: View {
             
             print("Removed last 3 seconds of trajectory data. Remaining data points: \(gazeTrajectory.count)")
         }
+    }
+    
+    func handleCalibration() {
+        calibrationManager.startCalibration()
     }
     
     /// Handles the export trajectory button tap.

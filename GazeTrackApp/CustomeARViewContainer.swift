@@ -16,9 +16,15 @@ struct CustomARViewContainer: UIViewRepresentable {
     @Binding var eyeGazeActive: Bool
     @Binding var lookAtPoint: CGPoint?
     @Binding var isWinking: Bool
+    @StateObject var calibrationManager: CalibrationManager  // 添加校准管理器
     
     func makeUIView(context: Context) -> CustomARView {
-        return CustomARView(eyeGazeActive: $eyeGazeActive, lookAtPoint: $lookAtPoint, isWinking: $isWinking)
+        return CustomARView(
+            eyeGazeActive: $eyeGazeActive,
+            lookAtPoint: $lookAtPoint,
+            isWinking: $isWinking,
+            calibrationManager: calibrationManager
+        )
     }
     
     func updateUIView(_ uiView: CustomARView, context: Context) {}
@@ -28,8 +34,13 @@ class CustomARView: ARView, ARSessionDelegate {
     @Binding var eyeGazeActive: Bool
     @Binding var lookAtPoint: CGPoint?
     @Binding var isWinking: Bool
+    var calibrationManager: CalibrationManager
     
-    init(eyeGazeActive: Binding<Bool>, lookAtPoint: Binding<CGPoint?>, isWinking: Binding<Bool>) {
+    init(eyeGazeActive: Binding<Bool>,
+         lookAtPoint: Binding<CGPoint?>,
+         isWinking: Binding<Bool>,
+         calibrationManager: CalibrationManager) {
+        self.calibrationManager = calibrationManager
         _eyeGazeActive = eyeGazeActive
         _lookAtPoint = lookAtPoint
         _isWinking = isWinking
@@ -40,11 +51,32 @@ class CustomARView: ARView, ARSessionDelegate {
     }
     
     func session(_ session: ARSession, didUpdate anchors: [ARAnchor]) {
-        guard eyeGazeActive, let faceAnchor = anchors.compactMap({ $0 as? ARFaceAnchor }).first else {
+        guard let faceAnchor = anchors.compactMap({ $0 as? ARFaceAnchor }).first else {
             return
         }
         
-        detectGazePoint(faceAnchor: faceAnchor)
+        // 如果在校准模式下，收集校准数据
+        if calibrationManager.isCalibrating {
+            calibrationManager.collectGazeVector(faceAnchor.lookAtPoint)
+        }
+        
+        // 如果在追踪模式下，使用校准后的模型
+        if eyeGazeActive {
+            if calibrationManager.calibrationCompleted,
+               let calibratedPoint = calibrationManager.predictScreenPoint(from: faceAnchor.lookAtPoint) {
+                // 使用校准后的坐标
+                DispatchQueue.main.async {
+                    self.lookAtPoint = CGPoint(
+                        x: calibratedPoint.x.clamped(to: Ranges.widthRange),
+                        y: calibratedPoint.y.clamped(to: Ranges.heightRange)
+                    )
+                }
+            } else {
+                // 如果没有校准或校准失败，使用原始坐标计算方法
+                detectGazePoint(faceAnchor: faceAnchor)
+            }
+        }
+        
         detectWink(faceAnchor: faceAnchor)
         detectEyebrowRaise(faceAnchor: faceAnchor)
     }
