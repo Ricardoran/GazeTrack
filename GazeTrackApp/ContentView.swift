@@ -18,7 +18,7 @@ struct ContentView: View {
     
     // 添加倒计时相关状态
     @State private var isCountingDown: Bool = false
-    @State private var countdownValue: Int = 3
+    @State private var countdownValue: Int = 5
     @State private var showCountdown: Bool = false
     
     // State to trigger an alert after export completes
@@ -385,7 +385,7 @@ struct ContentView: View {
     private func startCountdown() {
         isCountingDown = true
         showCountdown = true
-        countdownValue = 3
+        countdownValue = 5
         
         // 创建倒计时定时器
         let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
