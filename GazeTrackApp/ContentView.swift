@@ -45,7 +45,7 @@ struct ContentView: View {
     
     var body: some View {
         ZStack(alignment: .bottom) {
-            CustomARViewContainer(
+            ARViewContainer(
                 eyeGazeActive: $eyeGazeActive,
                 lookAtPoint: $lookAtPoint,
                 isWinking: $isWinking,

@@ -1,9 +1,9 @@
-//  CustomARViewContainer.swift
+//  ARViewContainer.swift
 //  Eye-Tracker
 //
 //  Created by Haoran Zhang on 03/07 2025.
 //
-//  A custom AR view container that handles face tracking and eye gaze detection
+//  A AR view container that handles face tracking and eye gaze detection
 //  This component integrates ARKit face tracking to enable eye gaze tracking
 //  and facial expression detection features
 //
@@ -12,7 +12,7 @@ import SwiftUI
 import ARKit
 import RealityKit
 
-struct CustomARViewContainer: UIViewRepresentable {
+struct ARViewContainer: UIViewRepresentable {
     @Binding var eyeGazeActive: Bool
     @Binding var lookAtPoint: CGPoint?
     @Binding var isWinking: Bool

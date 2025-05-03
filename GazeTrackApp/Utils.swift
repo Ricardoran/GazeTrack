@@ -1,4 +1,4 @@
-//  Helper.swift
+//  Utils.swift
 //  GazeTrackApp
 //
 //  Created by Haoran Zhang on 3/2/25.
