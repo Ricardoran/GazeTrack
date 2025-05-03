@@ -73,7 +73,6 @@ class CalibrationManager: ObservableObject {
                     self.currentPointIndex += 1
                     self.showNextPoint()
                 } else {
-                    // 如果数据不足，重新收集当前点的数据
                     print("数据采集不足，重新采集当前点")
                     self.currentPointGazeVectors.removeAll()
                     self.showNextPoint()
@@ -83,7 +82,9 @@ class CalibrationManager: ObservableObject {
     }
     
     private func finishCalibration() {
-        let success = calculateCalibrationModel()
+        // debug，先不进行模型计算，直接返回成功，优先测量准确性
+        // let success = calculateCalibrationModel()
+        let success = true
         isCalibrating = false
         calibrationCompleted = success
         
