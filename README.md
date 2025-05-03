@@ -13,7 +13,7 @@ The app utilizes the front-facing TrueDepth camera system on compatible iOS devi
 - **Video Stimuli**: Can display a video while tracking eye movements, with adjustable opacity.
 - **Data Recording**: Records eye gaze coordinates at 60Hz frequency.
 - **CSV Export**: Exports tracking data to a CSV file with timestamps and x,y coordinates.
-- **Countdown Timer**: Includes a 3-second countdown before recording starts to reduce initial data noise.
+- **Countdown Timer**: Includes a 5-second countdown before recording starts to reduce initial data noise.
 - **Wink Detection**: Detects when the user winks or raises eyebrows.
 
 ## Requirements
