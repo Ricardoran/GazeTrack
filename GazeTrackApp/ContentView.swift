@@ -54,7 +54,7 @@ struct ContentView: View {
             }
 
             // 校准点视图
-            if calibrationManager.isCalibrating && calibrationManager.showCalibrationPoint,
+            if (calibrationManager.isCalibrating || calibrationManager.isMeasuring) && calibrationManager.showCalibrationPoint,
                let calibrationPoint = calibrationManager.currentCalibrationPoint {
                 Circle()
                     .fill(Color.blue)
@@ -62,6 +62,15 @@ struct ContentView: View {
                     .position(calibrationPoint)
                     .transition(.scale.combined(with: .opacity))
                     .animation(.easeInOut(duration: 0.3), value: calibrationManager.currentPointIndex)
+            }
+            
+            // 注视点视图（仅在测量模式下显示）
+            if calibrationManager.isMeasuring && lookAtPoint != nil {
+                Circle()
+                    .fill(Color.red)
+                    .frame(width: 40, height: 40)
+                    .position(lookAtPoint!)
+                    .opacity(0.7)
             }
 
             // 按钮组
@@ -75,6 +84,16 @@ struct ContentView: View {
                     .foregroundColor(.white)
                     .padding()
                     .background(Color.red)
+                    .cornerRadius(10)
+                    
+                    // 测量按钮 - 添加此按钮
+                    Button("开始测量") {
+                        handleMeasurement()
+                    }
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding()
+                    .background(Color.orange)
                     .cornerRadius(10)
                     
                     // 视频模式切换按钮
@@ -197,6 +216,49 @@ struct ContentView: View {
                 .zIndex(100)
             }
 
+            // 测量结果视图 - 添加此视图
+            if calibrationManager.showMeasurementResults {
+                ZStack {
+                    Color.black.opacity(0.8)
+                        .edgesIgnoringSafeArea(.all)
+                    
+                    VStack(spacing: 20) {
+                        Text("测量结果")
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                        
+                        Text("平均误差: \(String(format: "%.2f", calibrationManager.averageError)) 像素")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(0..<calibrationManager.measurementResults.count, id: \.self) { index in
+                                let result = calibrationManager.measurementResults[index]
+                                Text("点 \(index + 1): 误差 = \(String(format: "%.2f", result.error)) 像素")
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .padding()
+                        .background(Color.gray.opacity(0.3))
+                        .cornerRadius(10)
+                        
+                        Button("关闭") {
+                            calibrationManager.showMeasurementResults = false
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.blue)
+                        .cornerRadius(10)
+                    }
+                    .padding(30)
+                    .background(Color.gray.opacity(0.5))
+                    .cornerRadius(20)
+                }
+                .zIndex(200) // 确保显示在最上层
+            }
+
             // 倒计时显示
             if trajectoryManager.showCountdown {
                 Text("\(trajectoryManager.countdownValue)")
@@ -266,6 +328,11 @@ struct ContentView: View {
     // 处理校准
     func handleCalibration() {
         calibrationManager.startCalibration()
+    }
+    
+    // 处理测量 - 添加此函数
+    func handleMeasurement() {
+        calibrationManager.startMeasurement()
     }
     
     // 处理导出轨迹

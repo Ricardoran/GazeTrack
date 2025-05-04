@@ -7,11 +7,24 @@ struct CalibrationPoint {
     let gazeVectors: [SIMD3<Float>]
 }
 
+// 测量数据结构
+struct MeasurementPoint {
+    let targetPosition: CGPoint
+    let actualPosition: CGPoint
+    let error: CGFloat  // 误差距离（像素）
+}
+
 class CalibrationManager: ObservableObject {
     @Published var isCalibrating: Bool = false
+    @Published var isMeasuring: Bool = false  // 新增：测量模式标志
     @Published var currentPointIndex: Int = 0
     @Published var calibrationCompleted: Bool = false
-    @Published var showCalibrationPoint: Bool = false  // 添加这行
+    @Published var showCalibrationPoint: Bool = false
+    @Published var measurementCompleted: Bool = false  // 新增：测量完成标志
+    @Published var measurementResults: [MeasurementPoint] = []  // 新增：测量结果
+    @Published var averageError: CGFloat = 0  // 新增：平均误差
+    @Published var showMeasurementResults: Bool = false  // 新增：显示测量结果
+    private var measurementStartTime: Date?  // 新增：测量开始时间
     
     private let calibrationPositions: [(x: CGFloat, y: CGFloat)] = [
         (0.5, 0.5),  // 中心
@@ -23,29 +36,65 @@ class CalibrationManager: ObservableObject {
     
     private var calibrationPoints: [CalibrationPoint] = []
     private var currentPointGazeVectors: [SIMD3<Float>] = []
+    private var currentMeasurementPoints: [CGPoint] = []  // 新增：当前测量点的实际位置
     
     // 获取当前校准点的屏幕坐标
     var currentCalibrationPoint: CGPoint? {
         guard currentPointIndex < calibrationPositions.count else { return nil }
         let position = calibrationPositions[currentPointIndex]
-        let screenSize = UIScreen.main.bounds.size
-        return CGPoint(x: position.x * screenSize.width,
-                      y: position.y * screenSize.height)
+        let safeFrameSize = Device.safeFrameSize
+        return CGPoint(x: position.x * safeFrameSize.width,
+                       y: position.y * safeFrameSize.height)
     }
     
     // 开始校准过程
     func startCalibration() {
         isCalibrating = true
+        isMeasuring = false
         currentPointIndex = 0
         calibrationPoints.removeAll()
         calibrationCompleted = false
+        showCalibrationPoint = true
         showNextPoint()
+    }
+    
+    // 新增：开始测量过程
+    func startMeasurement() {
+        isCalibrating = false
+        isMeasuring = true
+        currentPointIndex = 0
+        measurementResults.removeAll()
+        currentMeasurementPoints.removeAll()
+        measurementStartTime = nil
+        measurementCompleted = false
+        showCalibrationPoint = true
+        showMeasurementResults = false
+        showNextMeasurementPoint()
     }
     
     // 收集校准数据
     func collectGazeVector(_ vector: SIMD3<Float>) {
         guard isCalibrating else { return }
         currentPointGazeVectors.append(vector)
+    }
+    
+    // 新增：收集测量数据（优化版）
+    func collectMeasurementPoint(_ point: CGPoint) {
+        guard isMeasuring && showCalibrationPoint else { return }
+        
+        // 初始化开始时间
+        if measurementStartTime == nil {
+            measurementStartTime = Date()
+            return
+        }
+        
+        // 计算经过的时间（秒）
+        let elapsedTime = Date().timeIntervalSince(measurementStartTime!)
+        
+        // 只在1-3秒之间的稳定窗口内采集数据
+        if elapsedTime >= 1.0 && elapsedTime <= 3.0 {
+            currentMeasurementPoints.append(point)
+        }
     }
     
     private func showNextPoint() {
@@ -80,6 +129,51 @@ class CalibrationManager: ObservableObject {
         }
     }
     
+    // 新增：显示下一个测量点（优化版）
+    private func showNextMeasurementPoint() {
+        guard currentPointIndex < calibrationPositions.count else {
+            finishMeasurement()
+            return
+        }
+        
+        currentMeasurementPoints.removeAll()
+        measurementStartTime = nil  // 重置测量开始时间
+        showCalibrationPoint = true
+        
+        // 显示每个点5秒，给用户更充足的时间注视
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+            if let currentPoint = self.currentCalibrationPoint {
+                // 计算当前点的平均注视位置
+                if !self.currentMeasurementPoints.isEmpty {
+                    let avgX = self.currentMeasurementPoints.map { $0.x }.reduce(0, +) / CGFloat(self.currentMeasurementPoints.count)
+                    let avgY = self.currentMeasurementPoints.map { $0.y }.reduce(0, +) / CGFloat(self.currentMeasurementPoints.count)
+                    let avgPoint = CGPoint(x: avgX, y: avgY)
+                    
+                    // 计算误差（欧几里得距离）
+                    let errorDistance = sqrt(pow(avgPoint.x - currentPoint.x, 2) + pow(avgPoint.y - currentPoint.y, 2))
+                    
+                    // 添加到测量结果
+                    self.measurementResults.append(
+                        MeasurementPoint(
+                            targetPosition: currentPoint,
+                            actualPosition: avgPoint,
+                            error: errorDistance
+                        )
+                    )
+                    
+                    print("测量点 \(self.currentPointIndex+1): 目标=(\(currentPoint.x), \(currentPoint.y)), 实际=(\(avgPoint.x), \(avgPoint.y)), 误差=\(errorDistance)像素")
+                    print("采集数据点数量: \(self.currentMeasurementPoints.count)，采集窗口: 1-3秒（总5秒）")
+                } else {
+                    print("警告：测量点 \(self.currentPointIndex+1) 没有采集到数据")
+                }
+                
+                self.showCalibrationPoint = false
+                self.currentPointIndex += 1
+                self.showNextMeasurementPoint()
+            }
+        }
+    }
+    
     private func finishCalibration() {
         // debug，先不进行模型计算，直接返回成功，优先测量准确性
         // let success = calculateCalibrationModel()
@@ -92,6 +186,25 @@ class CalibrationManager: ObservableObject {
             print("校准完成，模型计算成功")
         } else {
             print("校准失败：\(calibrationError ?? "未知错误")")
+        }
+    }
+    
+    // 新增：完成测量
+    private func finishMeasurement() {
+        isMeasuring = false
+        measurementCompleted = true
+        showCalibrationPoint = false
+        
+        // 计算平均误差
+        if !measurementResults.isEmpty {
+            averageError = measurementResults.map { $0.error }.reduce(0, +) / CGFloat(measurementResults.count)
+            
+            print("测量完成，平均误差: \(averageError) 像素")
+            
+            // 显示测量结果
+            showMeasurementResults = true
+        } else {
+            print("测量失败：没有收集到足够的数据")
         }
     }
     

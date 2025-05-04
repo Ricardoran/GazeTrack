@@ -60,6 +60,16 @@ class CustomARView: ARView, ARSessionDelegate {
             calibrationManager.collectGazeVector(faceAnchor.lookAtPoint)
         }
         
+        // 更新lookAtPoint（无论在什么模式下）
+        detectGazePoint(faceAnchor: faceAnchor)
+        
+        // 如果在测量模式下，收集测量数据
+        if calibrationManager.isMeasuring && calibrationManager.showCalibrationPoint {
+            if let point = lookAtPoint {
+                calibrationManager.collectMeasurementPoint(point)
+            }
+        }
+        
         // 如果在追踪模式下，使用校准后的模型
         if eyeGazeActive {
             if calibrationManager.calibrationCompleted,
