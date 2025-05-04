@@ -54,7 +54,6 @@ class CalibrationManager: ObservableObject {
             return
         }
         
-        calibrationProgress = Double(currentPointIndex) / Double(calibrationPositions.count)
         currentPointGazeVectors.removeAll()
         showCalibrationPoint = true
         
@@ -87,6 +86,7 @@ class CalibrationManager: ObservableObject {
         let success = true
         isCalibrating = false
         calibrationCompleted = success
+
         
         if success {
             print("校准完成，模型计算成功")
@@ -97,7 +97,6 @@ class CalibrationManager: ObservableObject {
     
     // 校准模型参数
     private var calibrationMatrix: (xMatrix: simd_float3x3, yMatrix: simd_float3x3)?
-    @Published var calibrationProgress: Double = 0.0
     @Published var calibrationError: String?
     
     // 计算校准模型

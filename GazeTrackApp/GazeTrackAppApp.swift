@@ -1,4 +1,3 @@
-//
 //  GazeTrackAppApp.swift
 //  GazeTrackApp
 //
