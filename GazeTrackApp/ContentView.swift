@@ -228,14 +228,14 @@ struct ContentView: View {
                             .fontWeight(.bold)
                             .foregroundColor(.white)
                         
-                        Text("平均误差: \(String(format: "%.2f", calibrationManager.averageError)) 像素")
+                        Text("平均误差: \(String(format: "%.2f", calibrationManager.averageError)) pt")
                             .font(.headline)
                             .foregroundColor(.white)
                         
                         VStack(alignment: .leading, spacing: 10) {
                             ForEach(0..<calibrationManager.measurementResults.count, id: \.self) { index in
                                 let result = calibrationManager.measurementResults[index]
-                                Text("点 \(index + 1): 误差 = \(String(format: "%.2f", result.error)) 像素")
+                                Text("点 \(index + 1): 误差 = \(String(format: "%.2f", result.error)) pt")
                                     .foregroundColor(.white)
                             }
                         }

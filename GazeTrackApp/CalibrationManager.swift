@@ -11,7 +11,7 @@ struct CalibrationPoint {
 struct MeasurementPoint {
     let targetPosition: CGPoint
     let actualPosition: CGPoint
-    let error: CGFloat  // 误差距离（像素）
+    let error: CGFloat  // 误差距离（pt）
 }
 
 class CalibrationManager: ObservableObject {
@@ -161,7 +161,7 @@ class CalibrationManager: ObservableObject {
                         )
                     )
                     
-                    print("测量点 \(self.currentPointIndex+1): 目标=(\(currentPoint.x), \(currentPoint.y)), 实际=(\(avgPoint.x), \(avgPoint.y)), 误差=\(errorDistance)像素")
+                    print("测量点 \(self.currentPointIndex+1): 目标=(\(currentPoint.x), \(currentPoint.y)), 实际=(\(avgPoint.x), \(avgPoint.y)), 误差=\(errorDistance)pt")
                     print("采集数据点数量: \(self.currentMeasurementPoints.count)，采集窗口: 1-3秒（总5秒）")
                 } else {
                     print("警告：测量点 \(self.currentPointIndex+1) 没有采集到数据")
@@ -199,7 +199,7 @@ class CalibrationManager: ObservableObject {
         if !measurementResults.isEmpty {
             averageError = measurementResults.map { $0.error }.reduce(0, +) / CGFloat(measurementResults.count)
             
-            print("测量完成，平均误差: \(averageError) 像素")
+            print("测量完成，平均误差: \(averageError) pt")
             
             // 显示测量结果
             showMeasurementResults = true
