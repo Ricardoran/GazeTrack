@@ -64,8 +64,8 @@ struct ContentView: View {
                     .animation(.easeInOut(duration: 0.3), value: calibrationManager.currentPointIndex)
             }
             
-            // 注视点视图（仅在测量模式下显示）
-            if calibrationManager.isMeasuring && lookAtPoint != nil {
+            // 注视点视图（仅在测量模式下显示-在校准模式下同样显示）
+            if calibrationManager.isMeasuring ||  calibrationManager.isMeasuring && lookAtPoint != nil {
                 Circle()
                     .fill(Color.red)
                     .frame(width: 40, height: 40)
