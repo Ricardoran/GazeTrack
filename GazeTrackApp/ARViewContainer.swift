@@ -62,7 +62,7 @@ class CustomARView: ARView, ARSessionDelegate {
         }
         
         // 更新lookAtPoint（无论在什么模式下）
-        detectGazePoint(faceAnchor: faceAnchor)
+        updateDetectGazePoint(faceAnchor: faceAnchor)
         
         // 如果在测量模式下，收集测量数据
         if calibrationManager.isMeasuring && calibrationManager.showCalibrationPoint {
@@ -75,10 +75,11 @@ class CustomARView: ARView, ARSessionDelegate {
         if eyeGazeActive {
             if calibrationManager.calibrationCompleted{
                 print("已经完成了校准，开始追踪模式")
-               calibrationManager.predictScreenPoint(from:faceAnchor)
+                calibrationManager.predictScreenPoint(from:faceAnchor)
+
             } else {
                 // 如果没有校准或校准失败，使用原始坐标计算方法
-                detectGazePoint(faceAnchor: faceAnchor)
+                updateDetectGazePoint(faceAnchor: faceAnchor)
             }
         }
         
@@ -87,9 +88,10 @@ class CustomARView: ARView, ARSessionDelegate {
     }
     
     //使用重载的方法使得允许传入自定义向量
-    func detectGazePoint(faceAnchor: ARFaceAnchor) {
+    func detectGazePoint(faceAnchor: ARFaceAnchor)->CGPoint {
         let lookAtPoint = faceAnchor.lookAtPoint
-        detectGazePoint(faceAnchor: faceAnchor, overrideLookAtPoint: lookAtPoint)
+        let focusPoint=detectGazePoint(faceAnchor: faceAnchor, overrideLookAtPoint: lookAtPoint)
+        return focusPoint
     }
 
     func detectGazePoint(faceAnchor: ARFaceAnchor, overrideLookAtPoint: SIMD3<Float>)-> CGPoint {
@@ -113,12 +115,20 @@ class CustomARView: ARView, ARSessionDelegate {
             x: CGFloat(screenX).clamped(to: Ranges.widthRange),
             y: CGFloat(screenY).clamped(to: Ranges.heightRange)
         )
+        return focusPoint
+    }
+    func updateDetectGazePoint(faceAnchor: ARFaceAnchor){
+        let focusPoint=detectGazePoint(faceAnchor: faceAnchor)
         DispatchQueue.main.async {
             self.lookAtPoint = focusPoint
         }
-        return focusPoint
     }
-
+    func updateDetectGazePoint(faceAnchor: ARFaceAnchor,overrideLookAtPoint: SIMD3<Float>){
+        let focusPoint=detectGazePoint(faceAnchor: faceAnchor,overrideLookAtPoint: overrideLookAtPoint)
+        DispatchQueue.main.async {
+            self.lookAtPoint = focusPoint
+        }
+    }
     
     private func detectWink(faceAnchor: ARFaceAnchor) {
         let blendShapes = faceAnchor.blendShapes

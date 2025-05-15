@@ -37,10 +37,10 @@ class CalibrationManager: ObservableObject {
     
     private let calibrationPositions: [(x: CGFloat, y: CGFloat)] = [
         (0.5, 0.5),  // 中心
-        (0.2, 0.2),  // 左上
-        (0.8, 0.2),  // 右上
-        (0.2, 0.8),  // 左下
-        (0.8, 0.8)   // 右下
+        (0.1, 0.1),  // 左上
+        (0.9, 0.1),  // 右上
+        (0.1, 0.9),  // 左下
+        (0.9, 0.9)   // 右下
     ]
     
     private var calibrationPoints: [CalibrationPoint] = []
@@ -137,7 +137,7 @@ class CalibrationManager: ObservableObject {
                     print("已经收集到此校准点视线向量")
                     self.currentPointGazeVectors.removeAll()
                     print("请移动注视点，使得光标移动到校验点，并尽量保存不动")
-                    self.temporaryMessage = "⏱ 5秒等待结束，开始执行校准"
+                    self.temporaryMessage = "⏱ 5秒等待结束，开始执行校准，请使用余光注视，使光标移动至校准点并等待完成"
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                         self.temporaryMessage = nil
                     }
@@ -305,18 +305,69 @@ class CalibrationManager: ObservableObject {
             return false
         }
     }
+    // 高斯距离加权平均-》计算校准向量
+
+    func computeCalibrationPoints(from positions: [(x: CGFloat, y: CGFloat)]) -> [CGPoint] {
+        let safeFrameSize = Device.safeFrameSize
+        return positions.map { position in
+            CGPoint(
+                x: position.x * safeFrameSize.width,
+                y: position.y * safeFrameSize.height
+            )
+        }
+    }
+    /// 根据 gaze 投影点，使用所有校准点的矫正向量进行高斯加权平均
+    func guessCorrectionalVector(for gazePoint: CGPoint) -> SIMD3<Float> {
+        let screenPoints = computeCalibrationPoints(from: calibrationPositions)
+        
+        // 控制影响范围的参数，建议为屏幕宽度的 1/4
+        let sigma: CGFloat = Device.frameSize.width / 3.0
+        
+        var weightedSum = SIMD3<Float>(repeating: 0)
+        var totalWeight: CGFloat = 0
+        
+        for (index, calibrationPoint) in screenPoints.enumerated() {
+            guard index < correctionalVectors.count else { continue }
+            
+            let correction = correctionalVectors[index]
+            let distance = hypot(gazePoint.x - calibrationPoint.x, gazePoint.y - calibrationPoint.y)
+            
+            // 高斯权重计算
+            let weight = exp(-pow(distance, 2) / pow(sigma, 2))
+            
+            // 加权累加
+            weightedSum += correction * Float(weight)
+            totalWeight += weight
+        }
+        
+        guard totalWeight > 0 else {
+            // 没有权重说明 gaze 点太远，返回默认矫正
+            return SIMD3<Float>(repeating: 0)
+        }
+        
+        return weightedSum / Float(totalWeight)
+    }
+
+
+
+    
     // 使用校准模型预测屏幕坐标
-    func predictScreenPoint(from faceAnchor: ARFaceAnchor) -> CGPoint? {
-        let correctionalVector = correctionalVectors.reduce(SIMD3<Float>(repeating: 0), +) / Float(correctionalVectors.count) * 10
+    func predictScreenPoint(from faceAnchor: ARFaceAnchor) {
+        guard let arView = self.arView else {
+            print("ARView 未初始化")
+            return 
+        }
+        let lookScreenPoint = arView.detectGazePoint(faceAnchor: faceAnchor)
+        let correctionalVector = guessCorrectionalVector(for : lookScreenPoint) * 0.6
         let overrideLookAtPoint = faceAnchor.lookAtPoint + correctionalVector
         print("已经得到校准向量:")
         print(correctionalVector)
-        guard let arView = self.arView else {
-            print("ARView 未初始化")
-            return nil
-        }
-        print(faceAnchor.lookAtPoint)
+        print("屏幕观测点")
+        print(lookScreenPoint)
+        print("修正后的向量")
+        print(overrideLookAtPoint)
+        print("修正后的屏幕观测点")
         print(arView.detectGazePoint(faceAnchor: faceAnchor, overrideLookAtPoint: overrideLookAtPoint))
-        return arView.detectGazePoint(faceAnchor: faceAnchor, overrideLookAtPoint: overrideLookAtPoint)
+        arView.updateDetectGazePoint(faceAnchor: faceAnchor, overrideLookAtPoint: overrideLookAtPoint)
     }
 }
