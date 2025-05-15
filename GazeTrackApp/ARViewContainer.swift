@@ -74,6 +74,7 @@ class CustomARView: ARView, ARSessionDelegate {
         // 如果在追踪模式下，使用校准后的模型
         if eyeGazeActive {
             if calibrationManager.calibrationCompleted{
+                print("已经完成了校准，开始追踪模式")
                calibrationManager.predictScreenPoint(from:faceAnchor)
             } else {
                 // 如果没有校准或校准失败，使用原始坐标计算方法

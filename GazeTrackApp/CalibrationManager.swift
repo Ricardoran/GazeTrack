@@ -28,9 +28,12 @@ class CalibrationManager: ObservableObject {
     @Published var measurementResults: [MeasurementPoint] = []  // 新增：测量结果
     @Published var averageError: CGFloat = 0  // 新增：平均误差
     @Published var showMeasurementResults: Bool = false  // 新增：显示测量结果
+    @Published var temporaryMessage: String? = nil
     private var measurementStartTime: Date?  // 新增：测量开始时间
     weak var customARView: CustomARView?  // 新增：ARViewContainer的弱引用
     weak var arView: CustomARView?  // 新增：ARViewContainer的弱引用
+    var isCollecting: Bool = false
+    
     
     private let calibrationPositions: [(x: CGFloat, y: CGFloat)] = [
         (0.5, 0.5),  // 中心
@@ -82,18 +85,13 @@ class CalibrationManager: ObservableObject {
     
     // 收集校准数据
     func collectGazeVector(from faceAnchor: ARFaceAnchor) {
-        guard isCalibrating else { return }
+        guard isCalibrating && isCollecting else { return }
         // 取出 gaze 向量
         self.faceAnchorCalibration = faceAnchor
         let vector = faceAnchor.lookAtPoint
         currentPointGazeVectors.append(vector)
     }
-    /*
-    func collectGazeVector(_ vector: SIMD3<Float>) {
-        guard isCalibrating else { return }
-        currentPointGazeVectors.append(vector)
-    }
-    */
+
     
     // 新增：收集测量数据（优化版）
     func collectMeasurementPoint(_ point: CGPoint) {
@@ -122,10 +120,11 @@ class CalibrationManager: ObservableObject {
         
         currentPointGazeVectors.removeAll()
         showCalibrationPoint = true
+        self.isCollecting = true
         
         // 延长每个点的显示时间到3秒，给用户足够时间注视
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-
+            self.isCollecting = false
             if let currentPoint = self.currentCalibrationPoint {
                 // 只有当收集到足够的数据时才继续
                 if self.currentPointGazeVectors.count >= 30 { // 至少收集30个采样点
@@ -138,7 +137,15 @@ class CalibrationManager: ObservableObject {
                     print("已经收集到此校准点视线向量")
                     self.currentPointGazeVectors.removeAll()
                     print("请移动注视点，使得光标移动到校验点，并尽量保存不动")
-                    self.correctprocess() 
+                    self.temporaryMessage = "⏱ 5秒等待结束，开始执行校准"
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        self.temporaryMessage = nil
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+
+                        self.isCollecting = true
+                        self.correctprocess()
+                    }
 
                 } else {
                     print("数据采集不足，重新采集当前点")
@@ -300,13 +307,16 @@ class CalibrationManager: ObservableObject {
     }
     // 使用校准模型预测屏幕坐标
     func predictScreenPoint(from faceAnchor: ARFaceAnchor) -> CGPoint? {
-        let correctionalVector = faceAnchor.lookAtPoint - (
-                correctionalVectors.reduce(SIMD3<Float>(repeating: 0), +) / Float(correctionalVectors.count)
-            )
+        let correctionalVector = correctionalVectors.reduce(SIMD3<Float>(repeating: 0), +) / Float(correctionalVectors.count) * 10
+        let overrideLookAtPoint = faceAnchor.lookAtPoint + correctionalVector
+        print("已经得到校准向量:")
+        print(correctionalVector)
         guard let arView = self.arView else {
             print("ARView 未初始化")
             return nil
         }
-        return arView.detectGazePoint(faceAnchor: faceAnchor, overrideLookAtPoint: correctionalVector)
+        print(faceAnchor.lookAtPoint)
+        print(arView.detectGazePoint(faceAnchor: faceAnchor, overrideLookAtPoint: overrideLookAtPoint))
+        return arView.detectGazePoint(faceAnchor: faceAnchor, overrideLookAtPoint: overrideLookAtPoint)
     }
 }

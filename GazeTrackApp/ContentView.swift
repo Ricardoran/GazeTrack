@@ -9,7 +9,8 @@ struct ContentView: View {
     @State private var lookAtPoint: CGPoint?
     @State private var isWinking: Bool = false
     @State private var timerPublisher = Timer.publish(every: 1.0/60.0, on: .main, in: .common).autoconnect()
-    
+    @State private var showCalibrationGreeting = false
+
     // 管理器
     @StateObject private var calibrationManager = CalibrationManager()
     @StateObject private var trajectoryManager = TrajectoryManager()
@@ -52,6 +53,28 @@ struct ContentView: View {
                         }
                 }
             }
+            // 校准说明视图
+            if showCalibrationGreeting{
+                Text("请紧盯校准点，当提示：开始校准后，移动眼球，使光标至校准点")
+                    .font(.largeTitle)
+                    .foregroundColor(.white)
+                    .padding()
+                    .background(Color.black.opacity(0.7))
+                    .cornerRadius(10)
+                    .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.5), value: showCalibrationGreeting)
+            }
+            // 校准进度视图
+            if let message = calibrationManager.temporaryMessage {
+                Text(message)
+                    .padding()
+                    .background(Color.black.opacity(0.7))
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+                    .transition(.opacity)
+                    .zIndex(100)
+                    .padding(.top, 60)
+            }
 
             // 校准点视图
             if (calibrationManager.isCalibrating || calibrationManager.isMeasuring) && calibrationManager.showCalibrationPoint,
@@ -78,7 +101,11 @@ struct ContentView: View {
                 Group {
                     // 校准按钮
                     Button("开始校准") {
-                        handleCalibration()
+                        showCalibrationGreeting = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                            showCalibrationGreeting = false
+                            handleCalibration()
+                        }
                     }
                     .font(.headline)
                     .foregroundColor(.white)
@@ -278,6 +305,7 @@ struct ContentView: View {
                     .position(lookAtPoint)
             }
         }
+        .animation(.easeInOut, value: calibrationManager.temporaryMessage)
         .onTapGesture {
             // 点击屏幕时显示按钮并重置计时器
             uiManager.showButtons = true
