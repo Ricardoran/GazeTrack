@@ -46,6 +46,7 @@ class CustomARView: ARView, ARSessionDelegate {
         _isWinking = isWinking
         super.init(frame: .zero)
         self.session.delegate = self
+        calibrationManager.arView = self  // 将ARView传递给校准管理器
         let configuration = ARFaceTrackingConfiguration()
         self.session.run(configuration)
     }
@@ -57,11 +58,11 @@ class CustomARView: ARView, ARSessionDelegate {
         
         // 如果在校准模式下，收集校准数据
         if calibrationManager.isCalibrating {
-            calibrationManager.collectGazeVector(faceAnchor.lookAtPoint)
+            calibrationManager.collectGazeVector(from:faceAnchor)
         }
         
         // 更新lookAtPoint（无论在什么模式下）
-        detectGazePoint(faceAnchor: faceAnchor)
+        updateDetectGazePoint(faceAnchor: faceAnchor)
         
         // 如果在测量模式下，收集测量数据
         if calibrationManager.isMeasuring && calibrationManager.showCalibrationPoint {
@@ -72,18 +73,13 @@ class CustomARView: ARView, ARSessionDelegate {
         
         // 如果在追踪模式下，使用校准后的模型
         if eyeGazeActive {
-            if calibrationManager.calibrationCompleted,
-               let calibratedPoint = calibrationManager.predictScreenPoint(from: faceAnchor.lookAtPoint) {
-                // 使用校准后的坐标
-                DispatchQueue.main.async {
-                    self.lookAtPoint = CGPoint(
-                        x: calibratedPoint.x.clamped(to: Ranges.widthRange),
-                        y: calibratedPoint.y.clamped(to: Ranges.heightRange)
-                    )
-                }
+            if calibrationManager.calibrationCompleted{
+                print("已经完成了校准，开始追踪模式")
+                calibrationManager.predictScreenPoint(from:faceAnchor)
+
             } else {
                 // 如果没有校准或校准失败，使用原始坐标计算方法
-                detectGazePoint(faceAnchor: faceAnchor)
+                updateDetectGazePoint(faceAnchor: faceAnchor)
             }
         }
         
@@ -91,12 +87,18 @@ class CustomARView: ARView, ARSessionDelegate {
         detectEyebrowRaise(faceAnchor: faceAnchor)
     }
     
-    private func detectGazePoint(faceAnchor: ARFaceAnchor) {
-        // get the lookAtPoint from faceAnchor local coordinate
+    //使用重载的方法使得允许传入自定义向量
+    func detectGazePoint(faceAnchor: ARFaceAnchor)->CGPoint {
         let lookAtPoint = faceAnchor.lookAtPoint
-        
+        let focusPoint=detectGazePoint(faceAnchor: faceAnchor, overrideLookAtPoint: lookAtPoint)
+        return focusPoint
+    }
+
+    func detectGazePoint(faceAnchor: ARFaceAnchor, overrideLookAtPoint: SIMD3<Float>)-> CGPoint {
+        // get the lookAtPoint from faceAnchor local coordinate
+        let lookAtPoint = overrideLookAtPoint
         guard let cameraTransform = session.currentFrame?.camera.transform else {
-            return
+            return .zero
         }
         
         // convert the lookAtPoint from local coordinate into world coordinate
@@ -113,12 +115,20 @@ class CustomARView: ARView, ARSessionDelegate {
             x: CGFloat(screenX).clamped(to: Ranges.widthRange),
             y: CGFloat(screenY).clamped(to: Ranges.heightRange)
         )
-        
+        return focusPoint
+    }
+    func updateDetectGazePoint(faceAnchor: ARFaceAnchor){
+        let focusPoint=detectGazePoint(faceAnchor: faceAnchor)
         DispatchQueue.main.async {
             self.lookAtPoint = focusPoint
         }
     }
-
+    func updateDetectGazePoint(faceAnchor: ARFaceAnchor,overrideLookAtPoint: SIMD3<Float>){
+        let focusPoint=detectGazePoint(faceAnchor: faceAnchor,overrideLookAtPoint: overrideLookAtPoint)
+        DispatchQueue.main.async {
+            self.lookAtPoint = focusPoint
+        }
+    }
     
     private func detectWink(faceAnchor: ARFaceAnchor) {
         let blendShapes = faceAnchor.blendShapes
