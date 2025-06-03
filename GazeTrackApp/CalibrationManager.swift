@@ -163,7 +163,7 @@ class CalibrationManager: ObservableObject {
         if let currentPoint = self.currentCalibrationPoint {
             if self.currentPointGazeVectors.count >= 30 {
                 guard let faceAnchor = self.faceAnchorCalibration else { return  }
-                let avgVector = self.currentPointGazeVectors.reduce(SIMD3<Float>(repeating: 0.0), +) / SIMD3<Float>(Float(self.currentPointGazeVectors.count))
+                let avgVector = self.currentPointGazeVectors.reduce(SIMD3<Float>(repeating: 0.0), +) / SIMD3<Float>(repeating: Float(self.currentPointGazeVectors.count))
                 guard let arView = self.arView else { 
                     print("ARView 未初始化")
                     return
@@ -291,7 +291,7 @@ class CalibrationManager: ObservableObject {
             calibrationError = "校准点数据不足"
             return false
         }
-        for (index,(calib,correct))in zip(self.calibrationPoints,self.CorrectPoints).enumerated(){
+        for (_,(calib,correct))in zip(self.calibrationPoints,self.CorrectPoints).enumerated(){
             let originalVector = calib.gazeVectors.reduce(SIMD3<Float>(repeating: 0), +) / Float(calib.gazeVectors.count)
             let correctedVector = correct.correctedgazeVectors.reduce(SIMD3<Float>(repeating: 0), +) / Float(correct.correctedgazeVectors.count)
             let delta = correctedVector - originalVector

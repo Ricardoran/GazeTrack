@@ -45,12 +45,24 @@ class CustomARView: ARView, ARSessionDelegate {
         _lookAtPoint = lookAtPoint
         _isWinking = isWinking
         super.init(frame: .zero)
+//        self.configureDebugOptions()
         self.session.delegate = self
         calibrationManager.arView = self  // 将ARView传递给校准管理器
         let configuration = ARFaceTrackingConfiguration()
         self.session.run(configuration)
     }
     
+//    func configureDebugOptions() {
+//        self.debugOptions = [
+//            .showStatistics,         // 显示帧率和性能信息
+//            .showWorldOrigin,        // 显示世界坐标原点
+//            .showAnchorOrigins,      // 显示 Anchor 原点
+//            .showAnchorGeometry,     // 显示 Anchor 检测几何图形
+//            .showFeaturePoints,       // 显示点云信息
+//            .showSceneUnderstanding // 若 iOS ≥ 13.4 且使用 Scene Reconstruction 可启用
+//        ]
+//    }
+//    
     func session(_ session: ARSession, didUpdate anchors: [ARAnchor]) {
         guard let faceAnchor = anchors.compactMap({ $0 as? ARFaceAnchor }).first else {
             return

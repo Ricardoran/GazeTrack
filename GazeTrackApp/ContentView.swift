@@ -90,7 +90,7 @@ struct ContentView: View {
             // 注视点视图（仅在测量模式下显示-在校准模式下同样显示）
             if calibrationManager.isMeasuring ||  calibrationManager.isMeasuring && lookAtPoint != nil {
                 Circle()
-                    .fill(Color.red)
+                    .fill(Color.green)
                     .frame(width: 40, height: 40)
                     .position(lookAtPoint!)
                     .opacity(0.7)
