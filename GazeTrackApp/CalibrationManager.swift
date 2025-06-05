@@ -35,11 +35,16 @@ class CalibrationManager: ObservableObject {
     var isCollecting: Bool = false
     
     
+    // 9 个校准点，分布为 3x3 网格
     private let calibrationPositions: [(x: CGFloat, y: CGFloat)] = [
-        (0.5, 0.5),  // 中心
         (0.1, 0.1),  // 左上
+        (0.5, 0.1),  // 上中
         (0.9, 0.1),  // 右上
+        (0.1, 0.5),  // 左中
+        (0.5, 0.5),  // 中心
+        (0.9, 0.5),  // 右中
         (0.1, 0.9),  // 左下
+        (0.5, 0.9),  // 下中
         (0.9, 0.9)   // 右下
     ]
     
@@ -287,7 +292,7 @@ class CalibrationManager: ObservableObject {
 
     // 计算校准模型
     private func calculateCalibrationModel() -> Bool {
-        guard calibrationPoints.count >= 5 else {
+        guard calibrationPoints.count >= 9 else {
             calibrationError = "校准点数据不足"
             return false
         }
@@ -297,7 +302,7 @@ class CalibrationManager: ObservableObject {
             let delta = correctedVector - originalVector
             self.correctionalVectors.append(delta) 
         }
-        if self.correctionalVectors.count >= 5 {
+        if self.correctionalVectors.count >= 9 {
             print("已经得到校准向量组，可以开始计算校准模型")
             return true
         }else{
@@ -360,11 +365,11 @@ class CalibrationManager: ObservableObject {
         let lookScreenPoint = arView.detectGazePoint(faceAnchor: faceAnchor)
         let correctionalVector = guessCorrectionalVector(for : lookScreenPoint) * 0.6
         let overrideLookAtPoint = faceAnchor.lookAtPoint + correctionalVector
-        print("已经得到校准向量:")
-        print(correctionalVector)
+//        print("已经得到校准向量:")
+//        print(correctionalVector)
         print("屏幕观测点")
-        print(lookScreenPoint)
-        print("修正后的向量")
+//        print(lookScreenPoint)
+//        print("修正后的向量")
         print(overrideLookAtPoint)
         print("修正后的屏幕观测点")
         print(arView.detectGazePoint(faceAnchor: faceAnchor, overrideLookAtPoint: overrideLookAtPoint))
