@@ -90,3 +90,11 @@ extension CGFloat {
         }
     }
 }
+
+extension View {
+    func getRootViewController() -> UIViewController? {
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = scene.windows.first(where: { $0.isKeyWindow }) else { return nil }
+        return window.rootViewController
+    }
+}

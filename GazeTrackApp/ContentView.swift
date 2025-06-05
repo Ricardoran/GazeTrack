@@ -101,10 +101,14 @@ struct ContentView: View {
                 Group {
                     // 校准按钮
                     Button("开始校准") {
-                        showCalibrationGreeting = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                            showCalibrationGreeting = false
-                            handleCalibration()
+                        if let vc = self.getRootViewController() {
+                                calibrationManager.checkCameraPermissionAndStartCalibration(presentingViewController: vc)
+                        } else {
+                            showCalibrationGreeting = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                                showCalibrationGreeting = false
+                                handleCalibration()
+                            }
                         }
                     }
                     .font(.headline)
@@ -113,9 +117,13 @@ struct ContentView: View {
                     .background(Color.red)
                     .cornerRadius(10)
                     
-                    // 测量按钮 - 添加此按钮
+                    // 测量按钮
                     Button("开始测量") {
-                        handleMeasurement()
+                        if let vc = self.getRootViewController() {
+                            calibrationManager.checkCameraPermissionAndStartCalibration(presentingViewController: vc)
+                        } else {
+                            handleMeasurement()
+                        }
                     }
                     .font(.headline)
                     .foregroundColor(.white)
@@ -161,7 +169,11 @@ struct ContentView: View {
                     
                     // 开始/停止按钮
                     Button(action: {
-                        handleStartStop()
+                        if let vc = self.getRootViewController() {
+                            calibrationManager.checkCameraPermissionAndStartCalibration(presentingViewController: vc)
+                        } else {
+                            handleStartStop()
+                        }
                         uiManager.resetButtonHideTimer()
                     }) {
                         Text(eyeGazeActive ? "停止" : "开始")
@@ -358,7 +370,7 @@ struct ContentView: View {
         calibrationManager.startCalibration()
     }
     
-    // 处理测量 - 添加此函数
+    // 处理测量
     func handleMeasurement() {
         calibrationManager.startMeasurement()
     }
