@@ -6,6 +6,7 @@
 
 import SwiftUI
 import UIKit
+import AVFoundation
 
 struct Device {
     static var screenSize: CGSize {
@@ -97,4 +98,15 @@ extension View {
               let window = scene.windows.first(where: { $0.isKeyWindow }) else { return nil }
         return window.rootViewController
     }
+}
+
+func showCameraSettingsAlert(presentingViewController: UIViewController) {
+    let alert = UIAlertController(title: "需要摄像头权限", message: "请在设置中开启摄像头权限以继续使用该功能。", preferredStyle: .alert)
+    alert.addAction(UIAlertAction(title: "取消", style: .cancel, handler: nil))
+    alert.addAction(UIAlertAction(title: "去设置", style: .default, handler: { _ in
+        if let appSettings = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(appSettings)
+        }
+    }))
+    presentingViewController.present(alert, animated: true, completion: nil)
 }

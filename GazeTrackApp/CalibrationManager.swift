@@ -1,7 +1,5 @@
 import SwiftUI
 import ARKit
-import AVFoundation
-
 
 // 校准数据结构
 struct CalibrationPoint {
@@ -161,42 +159,44 @@ class CalibrationManager: ObservableObject {
     }
     private func correctprocess() { 
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-
-        if let currentPoint = self.currentCalibrationPoint {
-            if self.currentPointGazeVectors.count >= 30 {
-                guard let faceAnchor = self.faceAnchorCalibration else { return  }
-                let avgVector = self.currentPointGazeVectors.reduce(SIMD3<Float>(repeating: 0.0), +) / SIMD3<Float>(repeating: Float(self.currentPointGazeVectors.count))
-                guard let arView = self.arView else { 
-                    print("ARView 未初始化")
-                    return
-                 }
-                let focusPoint = arView.detectGazePoint(faceAnchor:faceAnchor,overrideLookAtPoint:avgVector)
-                let distance = sqrt(pow(focusPoint.x-currentPoint.x, 2) + pow(focusPoint.y-currentPoint.y, 2))
-                if distance < 50{
-                    print("已对齐校准点。")
-                    self.CorrectPoints.append(
-                        CorrectPoint(
-                            position: currentPoint,
-                            correctedgazeVectors: self.currentPointGazeVectors
+            if let currentPoint = self.currentCalibrationPoint {
+                if self.currentPointGazeVectors.count >= 30 {
+                    guard let faceAnchor = self.faceAnchorCalibration else { return  }
+                    let avgVector = self.currentPointGazeVectors.reduce(SIMD3<Float>(repeating: 0.0), +) / SIMD3<Float>(repeating: Float(self.currentPointGazeVectors.count))
+                    guard let arView = self.arView else { 
+                        print("ARView 未初始化")
+                        return
+                    }
+                    let focusPoint = arView.detectGazePointAfterCalibration(faceAnchor:faceAnchor,overrideLookAtPoint:avgVector)
+                    let distance = sqrt(pow(focusPoint.x-currentPoint.x, 2) + pow(focusPoint.y-currentPoint.y, 2))
+                    if distance < 50{
+                        print("已对齐校准点。")
+                        self.CorrectPoints.append(
+                            CorrectPoint(
+                                position: currentPoint,
+                                correctedgazeVectors: self.currentPointGazeVectors
+                            )
                         )
-                    )
-                    self.currentPointGazeVectors.removeAll()
-                    self.showCalibrationPoint = false
-                    self.currentPointIndex += 1
-                    self.showNextCalibrationPoint()
+                        self.currentPointGazeVectors.removeAll()
+                        self.showCalibrationPoint = false
+                        self.currentPointIndex += 1
+                        self.showNextCalibrationPoint()
 
+                    }else{
+                        print("未对齐校准点，重新采集当前点")
+                        self.currentPointGazeVectors.removeAll()
+                        self.correctprocess()
+                    }
                 }else{
-                    print("未对齐校准点，重新采集当前点")
+                    if(self.isCalibrating == false){
+                        return
+                    }
+                    print("对齐数据不足，重新采集当前点")
                     self.currentPointGazeVectors.removeAll()
                     self.correctprocess()
                 }
-            }else{
-                print("对齐数据不足，重新采集当前点")
-                self.currentPointGazeVectors.removeAll()
-                self.correctprocess()
-            }
 
-                    }
+            }
         }
     }
 
@@ -250,10 +250,8 @@ class CalibrationManager: ObservableObject {
         }
     }
     
-    private func finishCalibration() {
-        // debug，先不进行模型计算，直接返回成功，优先测量准确性
+    func finishCalibration() {
         let success = calculateCalibrationModel()
-        //let success = true
         isCalibrating = false
         calibrationCompleted = success
         
@@ -264,8 +262,8 @@ class CalibrationManager: ObservableObject {
         }
     }
     
-    // 新增：完成测量
-    private func finishMeasurement() {
+    // 完成测量
+    func finishMeasurement() {
         isMeasuring = false
         measurementCompleted = true
         showCalibrationPoint = false
@@ -288,7 +286,7 @@ class CalibrationManager: ObservableObject {
     @Published var calibrationError: String?
 
     // 计算校准模型
-    private func calculateCalibrationModel() -> Bool {
+    func calculateCalibrationModel() -> Bool {
         guard calibrationPoints.count >= 5 else {
             calibrationError = "校准点数据不足"
             return false
@@ -350,7 +348,19 @@ class CalibrationManager: ObservableObject {
         return weightedSum / Float(totalWeight)
     }
 
-
+    func stopCalibration() {
+        isCalibrating = false
+        isMeasuring = false
+        showCalibrationPoint = false
+        measurementCompleted = false
+        showMeasurementResults = false
+        temporaryMessage = nil
+        calibrationError = nil
+        isCollecting = false
+        currentPointIndex = 0
+        currentPointGazeVectors.removeAll()
+        faceAnchorCalibration = nil
+    }
 
     
     // 使用校准模型预测屏幕坐标
@@ -369,39 +379,8 @@ class CalibrationManager: ObservableObject {
         print("修正后的向量")
         print(overrideLookAtPoint)
         print("修正后的屏幕观测点")
-        print(arView.detectGazePoint(faceAnchor: faceAnchor, overrideLookAtPoint: overrideLookAtPoint))
-        arView.updateDetectGazePoint(faceAnchor: faceAnchor, overrideLookAtPoint: overrideLookAtPoint)
-    }
-    
-    func checkCameraPermissionAndStartCalibration(presentingViewController: UIViewController) {
-        let status = AVCaptureDevice.authorizationStatus(for: .video)
-        switch status {
-        case .authorized:
-            self.startCalibration()
-        case .notDetermined:
-            AVCaptureDevice.requestAccess(for: .video) { granted in
-                DispatchQueue.main.async {
-                    if granted {
-                        self.startCalibration()
-                    } else {
-                        self.showCameraSettingsAlert(presentingViewController: presentingViewController)
-                    }
-                }
-            }
-        default:
-            showCameraSettingsAlert(presentingViewController: presentingViewController)
-        }
-    }
-
-    func showCameraSettingsAlert(presentingViewController: UIViewController) {
-        let alert = UIAlertController(title: "需要摄像头权限", message: "请在设置中开启摄像头权限以继续使用该功能。", preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "取消", style: .cancel, handler: nil))
-        alert.addAction(UIAlertAction(title: "去设置", style: .default, handler: { _ in
-            if let appSettings = URL(string: UIApplication.openSettingsURLString) {
-                UIApplication.shared.open(appSettings)
-            }
-        }))
-        presentingViewController.present(alert, animated: true, completion: nil)
+        print(arView.detectGazePointAfterCalibration(faceAnchor: faceAnchor, overrideLookAtPoint: overrideLookAtPoint))
+        arView.updateDetectGazePointAfterCalibration(faceAnchor: faceAnchor, overrideLookAtPoint: overrideLookAtPoint)
     }
 
 }

@@ -102,7 +102,7 @@ struct ContentView: View {
                     // 校准按钮
                     Button("开始校准") {
                         if let vc = self.getRootViewController() {
-                                calibrationManager.checkCameraPermissionAndStartCalibration(presentingViewController: vc)
+                            checkCameraPermissionAndStartCalibration(presentingViewController: vc)
                         } else {
                             showCalibrationGreeting = true
                             DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
@@ -117,19 +117,15 @@ struct ContentView: View {
                     .background(Color.red)
                     .cornerRadius(10)
                     
-                    // 测量按钮
-                    Button("开始测量") {
-                        if let vc = self.getRootViewController() {
-                            calibrationManager.checkCameraPermissionAndStartCalibration(presentingViewController: vc)
-                        } else {
-                            handleMeasurement()
-                        }
-                    }
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(Color.orange)
-                    .cornerRadius(10)
+                    // // 测量按钮 暂时隐藏，demo没有用
+                    // Button("开始测量") {
+                    //     calibrationManager.startMeasurement()
+                    // }
+                    // .font(.headline)
+                    // .foregroundColor(.white)
+                    // .padding()
+                    // .background(Color.orange)
+                    // .cornerRadius(10)
                     
                     // 视频模式切换按钮
                     Button(action: {
@@ -170,7 +166,7 @@ struct ContentView: View {
                     // 开始/停止按钮
                     Button(action: {
                         if let vc = self.getRootViewController() {
-                            calibrationManager.checkCameraPermissionAndStartCalibration(presentingViewController: vc)
+                            self.checkCameraPermissionAndStartGazeTrack(presentingViewController: vc)
                         } else {
                             handleStartStop()
                         }
@@ -344,6 +340,7 @@ struct ContentView: View {
             print("开始眼动追踪...")
             trajectoryManager.resetTrajectory()
             eyeGazeActive = true
+            calibrationManager.stopCalibration()
             
             // 开始倒计时
             trajectoryManager.startCountdown {
@@ -367,6 +364,7 @@ struct ContentView: View {
     
     // 处理校准
     func handleCalibration() {
+        eyeGazeActive = false
         calibrationManager.startCalibration()
     }
     
@@ -380,6 +378,46 @@ struct ContentView: View {
         print("导出包含 \(trajectoryManager.gazeTrajectory.count) 个数据点的轨迹...")
         trajectoryManager.exportTrajectory {
             uiManager.showExportAlert = true
+        }
+    }
+    
+    func checkCameraPermissionAndStartGazeTrack(presentingViewController: UIViewController) {
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        switch status {
+        case .authorized:
+            handleStartStop()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    if granted {
+                        handleStartStop()
+                    } else {
+                        showCameraSettingsAlert(presentingViewController: presentingViewController)
+                    }
+                }
+            }
+        default:
+            showCameraSettingsAlert(presentingViewController: presentingViewController)
+        }
+    }
+    
+    func checkCameraPermissionAndStartCalibration(presentingViewController: UIViewController) {
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        switch status {
+        case .authorized:
+            handleCalibration()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    if granted {
+                        handleCalibration()
+                    } else {
+                        showCameraSettingsAlert(presentingViewController: presentingViewController)
+                    }
+                }
+            }
+        default:
+            showCameraSettingsAlert(presentingViewController: presentingViewController)
         }
     }
 }

@@ -86,11 +86,12 @@ class CustomARView: ARView, ARSessionDelegate {
         // 如果在追踪模式下，使用校准后的模型
         if eyeGazeActive {
             if calibrationManager.calibrationCompleted{
-                print("已经完成了校准，开始追踪模式")
+                print("已经完成了校准，开启眼动追踪")
                 calibrationManager.predictScreenPoint(from:faceAnchor)
 
             } else {
                 // 如果没有校准或校准失败，使用原始坐标计算方法
+                print("未校准模式，开启眼动追踪")
                 updateDetectGazePoint(faceAnchor: faceAnchor)
             }
         }
@@ -102,11 +103,11 @@ class CustomARView: ARView, ARSessionDelegate {
     //使用重载的方法使得允许传入自定义向量
     func detectGazePoint(faceAnchor: ARFaceAnchor)->CGPoint {
         let lookAtPoint = faceAnchor.lookAtPoint
-        let focusPoint=detectGazePoint(faceAnchor: faceAnchor, overrideLookAtPoint: lookAtPoint)
+        let focusPoint = detectGazePointAfterCalibration(faceAnchor: faceAnchor, overrideLookAtPoint: lookAtPoint)
         return focusPoint
     }
 
-    func detectGazePoint(faceAnchor: ARFaceAnchor, overrideLookAtPoint: SIMD3<Float>)-> CGPoint {
+    func detectGazePointAfterCalibration(faceAnchor: ARFaceAnchor, overrideLookAtPoint: SIMD3<Float>)-> CGPoint {
         // get the lookAtPoint from faceAnchor local coordinate
         let lookAtPoint = overrideLookAtPoint
         guard let cameraTransform = session.currentFrame?.camera.transform else {
@@ -135,8 +136,8 @@ class CustomARView: ARView, ARSessionDelegate {
             self.lookAtPoint = focusPoint
         }
     }
-    func updateDetectGazePoint(faceAnchor: ARFaceAnchor,overrideLookAtPoint: SIMD3<Float>){
-        let focusPoint=detectGazePoint(faceAnchor: faceAnchor,overrideLookAtPoint: overrideLookAtPoint)
+    func updateDetectGazePointAfterCalibration(faceAnchor: ARFaceAnchor,overrideLookAtPoint: SIMD3<Float>){
+        let focusPoint=detectGazePointAfterCalibration(faceAnchor: faceAnchor,overrideLookAtPoint: overrideLookAtPoint)
         DispatchQueue.main.async {
             self.lookAtPoint = focusPoint
         }
