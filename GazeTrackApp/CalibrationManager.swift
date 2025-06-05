@@ -1,5 +1,7 @@
 import SwiftUI
 import ARKit
+import AVFoundation
+
 
 // 校准数据结构
 struct CalibrationPoint {
@@ -370,4 +372,36 @@ class CalibrationManager: ObservableObject {
         print(arView.detectGazePoint(faceAnchor: faceAnchor, overrideLookAtPoint: overrideLookAtPoint))
         arView.updateDetectGazePoint(faceAnchor: faceAnchor, overrideLookAtPoint: overrideLookAtPoint)
     }
+    
+    func checkCameraPermissionAndStartCalibration(presentingViewController: UIViewController) {
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        switch status {
+        case .authorized:
+            self.startCalibration()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    if granted {
+                        self.startCalibration()
+                    } else {
+                        self.showCameraSettingsAlert(presentingViewController: presentingViewController)
+                    }
+                }
+            }
+        default:
+            showCameraSettingsAlert(presentingViewController: presentingViewController)
+        }
+    }
+
+    func showCameraSettingsAlert(presentingViewController: UIViewController) {
+        let alert = UIAlertController(title: "需要摄像头权限", message: "请在设置中开启摄像头权限以继续使用该功能。", preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "取消", style: .cancel, handler: nil))
+        alert.addAction(UIAlertAction(title: "去设置", style: .default, handler: { _ in
+            if let appSettings = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(appSettings)
+            }
+        }))
+        presentingViewController.present(alert, animated: true, completion: nil)
+    }
+
 }

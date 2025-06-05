@@ -76,7 +76,7 @@ struct ContentView: View {
                     .padding(.top, 60)
             }
 
-            // 校准点视图
+            // 校准点视图（在测量模式下或在校准模式下，显示这些已知位置的校准点，蓝色）
             if (calibrationManager.isCalibrating || calibrationManager.isMeasuring) && calibrationManager.showCalibrationPoint,
                let calibrationPoint = calibrationManager.currentCalibrationPoint {
                 Circle()
@@ -87,12 +87,12 @@ struct ContentView: View {
                     .animation(.easeInOut(duration: 0.3), value: calibrationManager.currentPointIndex)
             }
             
-            // 注视点视图（仅在测量模式下显示-在校准模式下同样显示）
-            if calibrationManager.isMeasuring ||  calibrationManager.isMeasuring && lookAtPoint != nil {
+            // 注视点视图（在测量模式下或在校准模式下， 显示这些已知位置的注视点，绿色，半透明）
+            if calibrationManager.isMeasuring, let lookAtPoint = lookAtPoint {
                 Circle()
                     .fill(Color.green)
                     .frame(width: 40, height: 40)
-                    .position(lookAtPoint!)
+                    .position(lookAtPoint)
                     .opacity(0.7)
             }
 
