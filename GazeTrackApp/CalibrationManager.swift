@@ -34,15 +34,20 @@ class CalibrationManager: ObservableObject {
     weak var arView: CustomARView?  // 新增：ARViewContainer的弱引用
     var isCollecting: Bool = false
     
-    
+    /*
+    private let calibrationPositions: [(x: CGFloat, y: CGFloat)] = {
+        let steps: [CGFloat] = [0.1, 0.3, 0.5, 0.7, 0.9]
+        return steps.flatMap { y in
+            steps.map { x in
+                (x, y)
+            }
+        }
+    }()
+    */
     private let calibrationPositions: [(x: CGFloat, y: CGFloat)] = [
         (0.5, 0.5),  // 中心
-        (0.1, 0.1),  // 左上
-        (0.9, 0.1),  // 右上
-        (0.1, 0.9),  // 左下
-        (0.9, 0.9)   // 右下
     ]
-    
+        
     private var calibrationPoints: [CalibrationPoint] = []
     private var currentPointGazeVectors: [SIMD3<Float>] = []
     private var CorrectPoints: [CorrectPoint] = [] // 储存修正后的视线向量 
@@ -61,7 +66,6 @@ class CalibrationManager: ObservableObject {
     // 开始校准过程
     func startCalibration() {
         isCalibrating = true
-        isMeasuring = true
         currentPointIndex = 0
         calibrationPoints.removeAll()
         calibrationCompleted = false
@@ -123,29 +127,21 @@ class CalibrationManager: ObservableObject {
         self.isCollecting = true
         
         // 延长每个点的显示时间到3秒，给用户足够时间注视
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            self.isCollecting = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            self.isCollecting = true
             if let currentPoint = self.currentCalibrationPoint {
                 // 只有当收集到足够的数据时才继续
-                if self.currentPointGazeVectors.count >= 30 { // 至少收集30个采样点
+                if self.currentPointGazeVectors.count >= 20 { // 至少收集30个采样点
                     self.calibrationPoints.append(
                         CalibrationPoint(
                             position: currentPoint,
                             gazeVectors: self.currentPointGazeVectors
                         )
                     )
-                    print("已经收集到此校准点视线向量")
                     self.currentPointGazeVectors.removeAll()
-                    print("请移动注视点，使得光标移动到校验点，并尽量保存不动")
-                    self.temporaryMessage = "⏱ 5秒等待结束，开始执行校准，请使用余光注视，使光标移动至校准点并等待完成"
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                        self.temporaryMessage = nil
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-
-                        self.isCollecting = true
-                        self.correctprocess()
-                    }
+                    self.showCalibrationPoint = false
+                    self.currentPointIndex += 1
+                    self.showNextCalibrationPoint()
 
                 } else {
                     print("数据采集不足，重新采集当前点")
@@ -157,50 +153,6 @@ class CalibrationManager: ObservableObject {
         // 开始倒计时，停止收集数据，3秒等待，用户调整自己的视线。
 
     }
-    private func correctprocess() { 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-
-        if let currentPoint = self.currentCalibrationPoint {
-            if self.currentPointGazeVectors.count >= 30 {
-                guard let faceAnchor = self.faceAnchorCalibration else { return  }
-                let avgVector = self.currentPointGazeVectors.reduce(SIMD3<Float>(repeating: 0.0), +) / SIMD3<Float>(Float(self.currentPointGazeVectors.count))
-                guard let arView = self.arView else { 
-                    print("ARView 未初始化")
-                    return
-                 }
-                let focusPoint = arView.detectGazePoint(faceAnchor:faceAnchor,overrideLookAtPoint:avgVector)
-                let distance = sqrt(pow(focusPoint.x-currentPoint.x, 2) + pow(focusPoint.y-currentPoint.y, 2))
-                if distance < 50{
-                    print("已对齐校准点。")
-                    self.CorrectPoints.append(
-                        CorrectPoint(
-                            position: currentPoint,
-                            correctedgazeVectors: self.currentPointGazeVectors
-                        )
-                    )
-                    self.currentPointGazeVectors.removeAll()
-                    self.showCalibrationPoint = false
-                    self.currentPointIndex += 1
-                    self.showNextCalibrationPoint()
-
-                }else{
-                    print("未对齐校准点，重新采集当前点")
-                    self.currentPointGazeVectors.removeAll()
-                    self.correctprocess()
-                }
-            }else{
-                print("对齐数据不足，重新采集当前点")
-                self.currentPointGazeVectors.removeAll()
-                self.correctprocess()
-            }
-
-                    }
-        }
-    }
-
-
-
-            
 
 
     // 新增：显示下一个测量点（优化版）
@@ -282,30 +234,57 @@ class CalibrationManager: ObservableObject {
     }
     
     // 校准模型参数
-    private var correctionalVectors: [SIMD3<Float>]=[]  // 用于存储全部校准点的校准向量
+    private var correctionalVectors: [CGVector] = [] // 用于存储全部校准点的校准向量
     @Published var calibrationError: String?
 
     // 计算校准模型
     private func calculateCalibrationModel() -> Bool {
-        guard calibrationPoints.count >= 5 else {
+        guard calibrationPoints.count >= 1 else {
             calibrationError = "校准点数据不足"
             return false
         }
-        for (index,(calib,correct))in zip(self.calibrationPoints,self.CorrectPoints).enumerated(){
+
+        // 清空原有 correctionalVectors
+        self.correctionalVectors.removeAll()
+        let screenPoints = computeCalibrationPoints(from: calibrationPositions)
+
+        for (index, calib) in calibrationPoints.enumerated() {
+            guard index < screenPoints.count,
+                let faceAnchor = self.faceAnchorCalibration,
+                let arView = self.arView else {
+                continue
+            }
+
+            // 1. 原始 gaze 向量取平均
             let originalVector = calib.gazeVectors.reduce(SIMD3<Float>(repeating: 0), +) / Float(calib.gazeVectors.count)
-            let correctedVector = correct.correctedgazeVectors.reduce(SIMD3<Float>(repeating: 0), +) / Float(correct.correctedgazeVectors.count)
-            let delta = correctedVector - originalVector
-            self.correctionalVectors.append(delta) 
+            // 2. 映射到屏幕预测点
+            let focusPoint = arView.detectGazePoint(faceAnchor: faceAnchor,overrideLookAtPoint: originalVector)
+            // 3. 获取实际校准点
+            let groundTruthPoint = screenPoints[index]
+
+            // 4. 计算偏移量
+            let deltaX = focusPoint.x - groundTruthPoint.x
+            let deltaY = focusPoint.y - groundTruthPoint.y
+            let distance = hypot(deltaX, deltaY)
+
+            // 5. 若距离过小，则不修正（添加近距离忽略机制）
+            let minDistanceThreshold: CGFloat = 20.0
+            let correction: CGVector = distance < minDistanceThreshold
+                ? CGVector(dx: 0, dy: 0)
+                : CGVector(dx: deltaX, dy: deltaY)
+
+            self.correctionalVectors.append(correction)
         }
-        if self.correctionalVectors.count >= 5 {
-            print("已经得到校准向量组，可以开始计算校准模型")
+
+        if self.correctionalVectors.count >= 1 {
+            print("已经得到屏幕校准向量组，可以开始计算校准模型")
             return true
-        }else{
+        } else {
             print("校准向量组不足")
             return false
         }
     }
-    // 高斯距离加权平均-》计算校准向量
+    // 高斯距离加权平均-》 选择最优校准计算校准向量
 
     func computeCalibrationPoints(from positions: [(x: CGFloat, y: CGFloat)]) -> [CGPoint] {
         let safeFrameSize = Device.safeFrameSize
@@ -316,41 +295,40 @@ class CalibrationManager: ObservableObject {
             )
         }
     }
-    /// 根据 gaze 投影点，使用所有校准点的矫正向量进行高斯加权平均
-    func guessCorrectionalVector(for gazePoint: CGPoint) -> SIMD3<Float> {
+
+    /// 根据 gaze 投影点，使用所有校准点的屏幕偏移向量进行高斯加权平均
+    func guessCorrectionalVector(for gazePoint: CGPoint) -> CGVector {
         let screenPoints = computeCalibrationPoints(from: calibrationPositions)
-        
-        // 控制影响范围的参数，建议为屏幕宽度的 1/4
+
+        // 控制影响范围的高斯 sigma，建议设为屏幕宽度的 1/3
         let sigma: CGFloat = Device.frameSize.width / 3.0
-        
-        var weightedSum = SIMD3<Float>(repeating: 0)
+
+        var weightedDx: CGFloat = 0
+        var weightedDy: CGFloat = 0
         var totalWeight: CGFloat = 0
-        
+
         for (index, calibrationPoint) in screenPoints.enumerated() {
             guard index < correctionalVectors.count else { continue }
-            
+
+            // correctionalVectors 现在是 [CGVector] 类型，表示屏幕偏移量
             let correction = correctionalVectors[index]
+
             let distance = hypot(gazePoint.x - calibrationPoint.x, gazePoint.y - calibrationPoint.y)
-            
-            // 高斯权重计算
-            let weight = exp(-pow(distance, 2) / pow(sigma, 2))
-            
-            // 加权累加
-            weightedSum += correction * Float(weight)
+            let weight = exp(-pow(distance, 2) / pow(sigma, 2))  // 高斯衰减
+
+            weightedDx += correction.dx * weight
+            weightedDy += correction.dy * weight
             totalWeight += weight
         }
-        
+
         guard totalWeight > 0 else {
-            // 没有权重说明 gaze 点太远，返回默认矫正
-            return SIMD3<Float>(repeating: 0)
+            // 如果没有任何有效权重，返回零偏移
+            return CGVector(dx: 0, dy: 0)
         }
-        
-        return weightedSum / Float(totalWeight)
+
+        return CGVector(dx: weightedDx / totalWeight, dy: weightedDy / totalWeight)
     }
 
-
-
-    
     // 使用校准模型预测屏幕坐标
     func predictScreenPoint(from faceAnchor: ARFaceAnchor) {
         guard let arView = self.arView else {
@@ -358,16 +336,12 @@ class CalibrationManager: ObservableObject {
             return 
         }
         let lookScreenPoint = arView.detectGazePoint(faceAnchor: faceAnchor)
-        let correctionalVector = guessCorrectionalVector(for : lookScreenPoint) * 0.6
-        let overrideLookAtPoint = faceAnchor.lookAtPoint + correctionalVector
+        let correctionalVector = guessCorrectionalVector(for : lookScreenPoint) 
         print("已经得到校准向量:")
         print(correctionalVector)
         print("屏幕观测点")
         print(lookScreenPoint)
-        print("修正后的向量")
-        print(overrideLookAtPoint)
         print("修正后的屏幕观测点")
-        print(arView.detectGazePoint(faceAnchor: faceAnchor, overrideLookAtPoint: overrideLookAtPoint))
-        arView.updateDetectGazePoint(faceAnchor: faceAnchor, overrideLookAtPoint: overrideLookAtPoint)
+        arView.updateCGPoint(faceAnchor: faceAnchor)
     }
 }

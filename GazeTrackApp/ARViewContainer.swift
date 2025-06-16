@@ -45,6 +45,7 @@ class CustomARView: ARView, ARSessionDelegate {
         _lookAtPoint = lookAtPoint
         _isWinking = isWinking
         super.init(frame: .zero)
+        //self.debugOptions = [.showAnchorOrigins]
         self.session.delegate = self
         calibrationManager.arView = self  // 将ARView传递给校准管理器
         let configuration = ARFaceTrackingConfiguration()
@@ -79,10 +80,12 @@ class CustomARView: ARView, ARSessionDelegate {
 
             } else {
                 // 如果没有校准或校准失败，使用原始坐标计算方法
+                print("没有完成校准，使用原始坐标计算方法")
                 updateDetectGazePoint(faceAnchor: faceAnchor)
             }
         }
-        
+        // 显示注视向量
+        // self.showLocalLookVector(from: faceAnchor)        
         detectWink(faceAnchor: faceAnchor)
         detectEyebrowRaise(faceAnchor: faceAnchor)
     }
@@ -117,6 +120,66 @@ class CustomARView: ARView, ARSessionDelegate {
         )
         return focusPoint
     }
+    // 对lookAtPoint进行屏幕校准（AR以右上角为原点，UIkit以左上角因此需要对换）
+    func adjustScreenPoint(_ point: CGPoint) -> CGPoint {
+        guard let orientation = UIApplication.shared.windows.first?.windowScene?.interfaceOrientation else {
+            return point
+        }
+
+        let size = UIScreen.main.bounds.size
+        let adjusted: CGPoint
+
+        // UIKit 以左上角为原点，ARKit 以右上角为原点，方向需转换
+        switch orientation {
+        case .landscapeRight, .landscapeLeft:
+            adjusted = CGPoint(x: size.width - point.x, y: size.height - point.y)
+        case .portrait, .portraitUpsideDown:
+            adjusted = CGPoint(x: size.width - point.x, y: size.height - point.y)
+        default:
+            assertionFailure("Unknown orientation")
+            return point
+        }
+
+        return adjusted
+    }
+    func updateCGPoint(faceAnchor: ARFaceAnchor) -> CGPoint {
+        guard let frame = self.session.currentFrame else { return .zero }
+        guard let orientation = UIApplication.shared.windows.first?.windowScene?.interfaceOrientation else { return .zero }
+
+        let lookAtVector = faceAnchor.lookAtPoint
+        let worldLookAt = faceAnchor.transform * SIMD4<Float>(lookAtVector, 1)
+
+        let projected = frame.camera.projectPoint(
+            SIMD3<Float>(worldLookAt.x, worldLookAt.y, worldLookAt.z),
+            orientation: orientation,
+            viewportSize: UIScreen.main.bounds.size
+        )
+
+        // ✅ 关键：人为缩放以增强可视响应
+        let scaleFactor: CGFloat = 9 // 推荐 1.5～3.0
+        let center = CGPoint(x: UIScreen.main.bounds.midX, y: UIScreen.main.bounds.midY)
+        let relative = CGPoint(x: projected.x - center.x, y: projected.y - center.y)
+
+        let scaled = CGPoint(
+            x: center.x + relative.x * scaleFactor,
+            y: center.y + relative.y * scaleFactor
+        )
+        let adjusted = adjustScreenPoint(scaled)
+
+        let clamped = CGPoint(
+            x: adjusted.x.clamped(to: Ranges.widthRange),
+            y: adjusted.y.clamped(to: Ranges.heightRange)
+        )
+
+        DispatchQueue.main.async {
+            self.lookAtPoint = clamped
+        }
+
+        return clamped
+    }
+
+
+
     func updateDetectGazePoint(faceAnchor: ARFaceAnchor){
         let focusPoint=detectGazePoint(faceAnchor: faceAnchor)
         DispatchQueue.main.async {
@@ -144,7 +207,37 @@ class CustomARView: ARView, ARSessionDelegate {
         let eyebrowRaiseThreshold: Float = 0.1
         isWinking = browInnerUp > eyebrowRaiseThreshold
     }
-    
+    // 4debug 显示faceAnchor的gaze射线
+    /// 可视化 faceAnchor 的局部注视向量（相对于 face 原点）
+    /*
+    func showLocalLookVector(from faceAnchor: ARFaceAnchor) {
+        if let oldAnchor = self.scene.anchors.first(where: { $0.name == "localLookVectorAnchor" }) {
+            self.scene.anchors.remove(oldAnchor)
+        }
+
+        let localLookAt = faceAnchor.lookAtPoint
+        let vectorLength = simd_length(localLookAt)
+        guard vectorLength > 0.001 else { return }
+
+        // 🟢 起点球体（face local 原点）
+        let startSphere = ModelEntity(
+            mesh: .generateSphere(radius: 0.006),
+            materials: [SimpleMaterial(color: .green, isMetallic: false)]
+        )
+        startSphere.position = [0, 0, 0]
+
+        // ✅ 将球体添加到以 faceAnchor.transform 为变换的 anchor 上
+        let anchor = AnchorEntity()
+        anchor.transform.matrix = faceAnchor.transform
+        anchor.name = "localLookVectorAnchor"
+        anchor.addChild(startSphere)
+
+        self.scene.anchors.append(anchor)
+
+        print("🟢 显示 face 原点球体 ✅ gazeLength=\(vectorLength)")
+    }
+    */
+
     @MainActor required dynamic init?(coder decoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }

@@ -9,7 +9,7 @@ struct ContentView: View {
     @State private var lookAtPoint: CGPoint?
     @State private var isWinking: Bool = false
     @State private var timerPublisher = Timer.publish(every: 1.0/60.0, on: .main, in: .common).autoconnect()
-    @State private var showCalibrationGreeting = false
+
 
     // 管理器
     @StateObject private var calibrationManager = CalibrationManager()
@@ -53,17 +53,6 @@ struct ContentView: View {
                         }
                 }
             }
-            // 校准说明视图
-            if showCalibrationGreeting{
-                Text("请紧盯校准点，当提示：开始校准后，移动眼球，使光标至校准点")
-                    .font(.largeTitle)
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(Color.black.opacity(0.7))
-                    .cornerRadius(10)
-                    .transition(.opacity)
-                    .animation(.easeInOut(duration: 0.5), value: showCalibrationGreeting)
-            }
             // 校准进度视图
             if let message = calibrationManager.temporaryMessage {
                 Text(message)
@@ -88,7 +77,7 @@ struct ContentView: View {
             }
             
             // 注视点视图（仅在测量模式下显示-在校准模式下同样显示）
-            if calibrationManager.isMeasuring ||  calibrationManager.isMeasuring && lookAtPoint != nil {
+            if calibrationManager.isMeasuring  || calibrationManager.isCalibrating &&  lookAtPoint != nil {
                 Circle()
                     .fill(Color.red)
                     .frame(width: 40, height: 40)
@@ -101,9 +90,7 @@ struct ContentView: View {
                 Group {
                     // 校准按钮
                     Button("开始校准") {
-                        showCalibrationGreeting = true
                         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                            showCalibrationGreeting = false
                             handleCalibration()
                         }
                     }
@@ -305,6 +292,7 @@ struct ContentView: View {
                     .position(lookAtPoint)
             }
         }
+        .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
         .animation(.easeInOut, value: calibrationManager.temporaryMessage)
         .onTapGesture {
             // 点击屏幕时显示按钮并重置计时器
@@ -327,6 +315,7 @@ struct ContentView: View {
     
     // 处理开始/停止
     func handleStartStop() {
+        uiManager.showButtons = false
         if !eyeGazeActive {
             // 立即激活眼动追踪，但不立即记录
             print("开始眼动追踪...")
@@ -356,6 +345,8 @@ struct ContentView: View {
     // 处理校准
     func handleCalibration() {
         calibrationManager.startCalibration()
+        // 开始校准后隐藏按钮组
+        uiManager.showButtons = false
     }
     
     // 处理测量 - 添加此函数

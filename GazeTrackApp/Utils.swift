@@ -46,7 +46,7 @@ struct Device {
     // 竖屏模式下的屏幕尺寸
     static var frameSize: CGSize {
         let safeAreaInsets = getSafeAreaInsets()
-        return CGSize(width: UIScreen.main.bounds.size.width,
+        return CGSize(width: UIScreen.main.bounds.size.width ,
                       height: UIScreen.main.bounds.size.height - safeAreaInsets.top - safeAreaInsets.bottom)
     }
     
