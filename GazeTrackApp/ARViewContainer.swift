@@ -81,7 +81,7 @@ class CustomARView: ARView, ARSessionDelegate {
             } else {
                 // 如果没有校准或校准失败，使用原始坐标计算方法
                 print("没有完成校准，使用原始坐标计算方法")
-                updateDetectGazePoint(faceAnchor: faceAnchor)
+                updateCGPoint(faceAnchor: faceAnchor)
             }
         }
         // 显示注视向量
@@ -125,7 +125,6 @@ class CustomARView: ARView, ARSessionDelegate {
         guard let orientation = UIApplication.shared.windows.first?.windowScene?.interfaceOrientation else {
             return point
         }
-
         let size = UIScreen.main.bounds.size
         let adjusted: CGPoint
 
