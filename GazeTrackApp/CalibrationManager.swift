@@ -134,9 +134,21 @@ class CalibrationManager: ObservableObject {
                             gazeVectors: self.currentPointGazeVectors
                         )
                     )
-                    print("已经收集到此校准点视线向量")
+                    // 调试日志（仅在开发时打开）
+                    #if DEBUG
+                    // 每60帧打印一次，避免日志过多
+                    if arc4random_uniform(60) == 0 {
+                        print("已经收集到此校准点视线向量")
+                    }
+                    #endif
                     self.currentPointGazeVectors.removeAll()
-                    print("请移动注视点，使得光标移动到校验点，并尽量保存不动")
+                    // 调试日志（仅在开发时打开）
+                    #if DEBUG
+                    // 每60帧打印一次，避免日志过多
+                    if arc4random_uniform(60) == 0 {
+                        print("请移动注视点，使得光标移动到校验点，并尽量保存不动")
+                    }
+                    #endif
                     self.temporaryMessage = "⏱ 5秒等待结束，开始执行校准，请使用余光注视，使光标移动至校准点并等待完成"
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                         self.temporaryMessage = nil

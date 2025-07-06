@@ -86,12 +86,20 @@ class CustomARView: ARView, ARSessionDelegate {
         // 如果在追踪模式下，使用校准后的模型
         if eyeGazeActive {
             if calibrationManager.calibrationCompleted{
-                print("已经完成了校准，开启眼动追踪")
+//                #if DEBUG
+//                if arc4random_uniform(60) == 0 {
+//                    print("已经完成了校准，开启眼动追踪")
+//                }
+//                #endif
                 calibrationManager.predictScreenPoint(from:faceAnchor)
 
             } else {
                 // 如果没有校准或校准失败，使用原始坐标计算方法
-                print("未校准模式，开启眼动追踪")
+//                #if DEBUG
+//                if arc4random_uniform(60) == 0 {
+//                    print("未校准模式，开启眼动追踪")
+//                }
+//                #endif
                 updateDetectGazePoint(faceAnchor: faceAnchor)
             }
         }
@@ -120,14 +128,80 @@ class CustomARView: ARView, ARSessionDelegate {
         // convert the lookAtPoint from world coordinate into camera coordinate
         let lookAtPointInCamera = simd_mul(simd_inverse(cameraTransform), lookAtPointInWorld)
         
-        // 计算focus point在手机屏幕的坐标（仅竖屏模式）
-        let screenX = lookAtPointInCamera.y / (Float(Device.screenSize.width) / 2) * Float(Device.frameSize.width)
-        let screenY = lookAtPointInCamera.x / (Float(Device.screenSize.height) / 2) * Float(Device.frameSize.height)
+        // 计算focus point在手机屏幕的坐标（支持横竖屏）
+        let screenX: Float
+        let screenY: Float
+        
+        if Device.isCameraOnLeft {
+            // 摄像头在左侧（landscapeRight）
+            // 使用横屏模式的方向感知尺寸
+            let orientationAwarePhysicalSize = Device.orientationAwareScreenSize
+            let bounds = UIScreen.main.bounds.size
+            screenX = lookAtPointInCamera.x / (Float(orientationAwarePhysicalSize.width) / 2) * Float(bounds.width)
+            screenY = -lookAtPointInCamera.y / (Float(orientationAwarePhysicalSize.height) / 2) * Float(bounds.height)
+        } else if Device.isCameraOnRight {
+            // 摄像头在右侧（landscapeLeft）
+            // 使用横屏模式的方向感知尺寸
+            let orientationAwarePhysicalSize = Device.orientationAwareScreenSize
+            let bounds = UIScreen.main.bounds.size
+            screenX = -lookAtPointInCamera.x / (Float(orientationAwarePhysicalSize.width) / 2) * Float(bounds.width)
+            screenY = lookAtPointInCamera.y / (Float(orientationAwarePhysicalSize.height) / 2) * Float(bounds.height)
+        } else {
+            // Portrait模式：使用原有逻辑
+            screenX = lookAtPointInCamera.y / (Float(Device.screenSize.width) / 2) * Float(Device.frameSize.width)
+            screenY = lookAtPointInCamera.x / (Float(Device.screenSize.height) / 2) * Float(Device.frameSize.height)
+        }
         
         let focusPoint = CGPoint(
             x: CGFloat(screenX).clamped(to: Ranges.widthRange),
             y: CGFloat(screenY).clamped(to: Ranges.heightRange)
         )
+        
+        // 调试日志（仅在开发时打开）
+        #if DEBUG
+        // 每60帧打印一次，避免日志过多
+        if arc4random_uniform(180) == 0 {
+            let safeAreaInsets = Device.getSafeAreaInsets()
+            let rawFocusPoint = CGPoint(x: CGFloat(screenX), y: CGFloat(screenY))
+            
+            let physicalSize = Device.orientationAwareScreenSize
+            
+            print("=== 眼动追踪坐标转换调试 ===")
+            print("当前方向:", Device.isCameraOnLeft ? "摄像头在左" : Device.isCameraOnRight ? "摄像头在右" : "竖屏")
+            print("Camera坐标:", lookAtPointInCamera)
+            if Device.isCameraOnLeft {
+                let orientationAwarePhysicalSize = Device.orientationAwareScreenSize
+                let bounds = UIScreen.main.bounds.size
+                print("摄像头在左计算详情(使用bounds尺寸):")
+                print("  - 物理尺寸:", orientationAwarePhysicalSize)
+                print("  - X计算: \(lookAtPointInCamera.x) / (\(orientationAwarePhysicalSize.width)/2) * \(bounds.width) = \(screenX)")
+                print("  - Y计算: -\(lookAtPointInCamera.y) / (\(orientationAwarePhysicalSize.height)/2) * \(bounds.height) = \(screenY)")
+            } else if Device.isCameraOnRight {
+                let orientationAwarePhysicalSize = Device.orientationAwareScreenSize
+                let bounds = UIScreen.main.bounds.size
+                print("摄像头在右计算详情(使用bounds尺寸):")
+                print("  - 物理尺寸:", orientationAwarePhysicalSize)
+                print("  - X计算: -\(lookAtPointInCamera.x) / (\(orientationAwarePhysicalSize.width)/2) * \(bounds.width) = \(screenX)")
+                print("  - Y计算: \(lookAtPointInCamera.y) / (\(orientationAwarePhysicalSize.height)/2) * \(bounds.height) = \(screenY)")
+            } else {
+                print("竖屏计算详情:")
+                print("  - 物理尺寸:", Device.screenSize)
+                print("  - X计算: \(lookAtPointInCamera.y) / (\(Device.screenSize.width)/2) * \(Device.frameSize.width) = \(screenX)")
+                print("  - Y计算: \(lookAtPointInCamera.x) / (\(Device.screenSize.height)/2) * \(Device.frameSize.height) = \(screenY)")
+            }
+            print("计算后屏幕坐标(未限制):", rawFocusPoint)
+            print("最终坐标(已限制):", focusPoint)
+            print("限制是否生效:", "X: \(rawFocusPoint.x != focusPoint.x ? "是" : "否"), Y: \(rawFocusPoint.y != focusPoint.y ? "是" : "否")")
+            print("屏幕尺寸:", Device.frameSize)
+            print("方向感知屏幕尺寸:", Device.orientationAwareScreenSize)
+            print("Safe Area:", "top=\(safeAreaInsets.top), bottom=\(safeAreaInsets.bottom), left=\(safeAreaInsets.left), right=\(safeAreaInsets.right)")
+            print("X范围: \(Ranges.widthRange), Y范围: \(Ranges.heightRange)")
+            print("摄像头侧边界检查:", Device.isCameraOnLeft ? "左侧边界=\(Ranges.widthRange.lowerBound)" : "右侧边界=\(Ranges.widthRange.upperBound)")
+            print("=======================")
+
+        }
+        #endif
+        
         return focusPoint
     }
     func updateDetectGazePoint(faceAnchor: ARFaceAnchor){
