@@ -134,18 +134,18 @@ class CustomARView: ARView, ARSessionDelegate {
         
         if Device.isCameraOnLeft {
             // 摄像头在左侧（landscapeRight）
-            // 使用横屏模式的方向感知尺寸
+            // 使用frameSize坐标系统（与竖屏保持一致）
             let orientationAwarePhysicalSize = Device.orientationAwareScreenSize
-            let bounds = UIScreen.main.bounds.size
-            screenX = lookAtPointInCamera.x / (Float(orientationAwarePhysicalSize.width) / 2) * Float(bounds.width)
-            screenY = -lookAtPointInCamera.y / (Float(orientationAwarePhysicalSize.height) / 2) * Float(bounds.height)
+            let frameSize = Device.frameSize
+            screenX = lookAtPointInCamera.x / (Float(orientationAwarePhysicalSize.width) / 2) * Float(frameSize.width)
+            screenY = -lookAtPointInCamera.y / (Float(orientationAwarePhysicalSize.height) / 2) * Float(frameSize.height)
         } else if Device.isCameraOnRight {
             // 摄像头在右侧（landscapeLeft）
-            // 使用横屏模式的方向感知尺寸
+            // 使用frameSize坐标系统（与竖屏保持一致）
             let orientationAwarePhysicalSize = Device.orientationAwareScreenSize
-            let bounds = UIScreen.main.bounds.size
-            screenX = -lookAtPointInCamera.x / (Float(orientationAwarePhysicalSize.width) / 2) * Float(bounds.width)
-            screenY = lookAtPointInCamera.y / (Float(orientationAwarePhysicalSize.height) / 2) * Float(bounds.height)
+            let frameSize = Device.frameSize
+            screenX = -lookAtPointInCamera.x / (Float(orientationAwarePhysicalSize.width) / 2) * Float(frameSize.width)
+            screenY = lookAtPointInCamera.y / (Float(orientationAwarePhysicalSize.height) / 2) * Float(frameSize.height)
         } else {
             // Portrait模式：使用原有逻辑
             screenX = lookAtPointInCamera.y / (Float(Device.screenSize.width) / 2) * Float(Device.frameSize.width)
@@ -159,7 +159,7 @@ class CustomARView: ARView, ARSessionDelegate {
         
         // 调试日志（仅在开发时打开）
         #if DEBUG
-        // 每60帧打印一次，避免日志过多
+        // 每180帧打印一次，避免日志过多
         if arc4random_uniform(180) == 0 {
             let safeAreaInsets = Device.getSafeAreaInsets()
             let rawFocusPoint = CGPoint(x: CGFloat(screenX), y: CGFloat(screenY))

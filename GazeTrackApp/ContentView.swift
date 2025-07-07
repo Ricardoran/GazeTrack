@@ -32,7 +32,6 @@ struct ContentView: View {
                     trajectoryManager.addTrajectoryPoint(point: point)
                 }
             }.onAppear {
-                Device.printScreenSize()
             }
             
             // 视频播放器（视频模式下）

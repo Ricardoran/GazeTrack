@@ -88,30 +88,30 @@ struct Device {
     }
     
     // 添加打印屏幕尺寸的函数
-    static func printScreenSize() {
-        let safeAreaInsets = getSafeAreaInsets()
-        let orientation = currentOrientation
+    // static func printScreenSize() {
+    //     let safeAreaInsets = getSafeAreaInsets()
+    //     let orientation = currentOrientation
         
-        print("=== 设备尺寸和方向信息 ===")
-        print("设备尺寸", Device.screenSize)
-        print("方向感知设备尺寸", Device.orientationAwareScreenSize)
-        print("当前方向:", orientation.rawValue, Device.isCameraOnLeft ? "(摄像头在左)" : Device.isCameraOnRight ? "(摄像头在右)" : Device.isPortrait ? "(竖屏)" : "(未知)")
-        print("屏幕分辨率:",UIScreen.main.nativeBounds.width, UIScreen.main.nativeBounds.height)
-        print("屏幕尺寸: 宽度 = \(UIScreen.main.bounds.size.width), 高度 = \(UIScreen.main.bounds.size.height)")
+    //     print("=== 设备尺寸和方向信息 ===")
+    //     print("设备尺寸", Device.screenSize)
+    //     print("方向感知设备尺寸", Device.orientationAwareScreenSize)
+    //     print("当前方向:", orientation.rawValue, Device.isCameraOnLeft ? "(摄像头在左)" : Device.isCameraOnRight ? "(摄像头在右)" : Device.isPortrait ? "(竖屏)" : "(未知)")
+    //     print("屏幕分辨率:",UIScreen.main.nativeBounds.width, UIScreen.main.nativeBounds.height)
+    //     print("屏幕尺寸: 宽度 = \(UIScreen.main.bounds.size.width), 高度 = \(UIScreen.main.bounds.size.height)")
         
-        print("=== Safe Area详细信息 ===")
-        print("Safe Area Insets - top:\(safeAreaInsets.top), bottom:\(safeAreaInsets.bottom), left:\(safeAreaInsets.left), right:\(safeAreaInsets.right)")
-        print("宽度范围: \(Ranges.widthRange)", "高度范围: \(Ranges.heightRange)")
-        print("Safe Frame尺寸: \(safeFrameSize)")
-        print("UIScreen.main.scale", UIScreen.main.scale)
-        print("===============================")
-    }
+    //     print("=== Safe Area详细信息 ===")
+    //     print("Safe Area Insets - top:\(safeAreaInsets.top), bottom:\(safeAreaInsets.bottom), left:\(safeAreaInsets.left), right:\(safeAreaInsets.right)")
+    //     print("宽度范围: \(Ranges.widthRange)", "高度范围: \(Ranges.heightRange)")
+    //     print("Safe Frame尺寸: \(safeFrameSize)")
+    //     print("UIScreen.main.scale", UIScreen.main.scale)
+    //     print("===============================")
+    // }
     
     // 方向感知的屏幕尺寸（去除安全区域）
     static var frameSize: CGSize {
         let safeAreaInsets = getSafeAreaInsets()
         let bounds = UIScreen.main.bounds.size
-        return CGSize(width: bounds.width,
+        return CGSize(width: bounds.width - safeAreaInsets.left - safeAreaInsets.right,
                       height: bounds.height - safeAreaInsets.top - safeAreaInsets.bottom)
     }
     
@@ -121,30 +121,18 @@ struct Device {
            let window = windowScene.windows.first {
             let insets = window.safeAreaInsets
             
-            // 横屏模式下手动修正Safe Area，保持与竖屏逻辑一致
-            if isLandscape {
-                // 竖屏：top=59, bottom=34, left=0, right=0
-                // 横屏应该：top=0, bottom=0, left=59, right=34
-                let correctedInsets = UIEdgeInsets(
-                    top: 0.0,
-                    left: 59.0,  // 对应竖屏的top
-                    bottom: 0.0,
-                    right: 34.0  // 对应竖屏的bottom
-                )
-                
-                #if DEBUG
-                if arc4random_uniform(180) == 0 {
-                    print("=== Safe Area 手动修正 ===")
-                    print("原始横屏Safe Area:", "top=\(insets.top), bottom=\(insets.bottom), left=\(insets.left), right=\(insets.right)")
-                    print("修正后Safe Area:", "top=\(correctedInsets.top), bottom=\(correctedInsets.bottom), left=\(correctedInsets.left), right=\(correctedInsets.right)")
-                    print("修正说明: 让横屏与竖屏保持逻辑一致")
-                    print("===============================")
-                }
-                #endif
-                
-                return correctedInsets
+            #if DEBUG
+            if arc4random_uniform(60) == 0 {
+                print("=== Safe Area 调试信息 ===")
+                print("设备方向:", isLandscape ? "横屏" : "竖屏")
+                print("系统原始Safe Area:", "top=\(insets.top), bottom=\(insets.bottom), left=\(insets.left), right=\(insets.right)")
+                print("屏幕尺寸:", UIScreen.main.bounds.size)
+                print("frameSize:", Device.frameSize)
+                print("=======================")
             }
+            #endif
             
+            // 直接使用系统返回的安全区域值
             return insets
         }
         return UIEdgeInsets.zero
@@ -168,21 +156,10 @@ struct Ranges {
         
         // 在横屏模式下，需要特别处理摄像头侧的安全区域
         if Device.isLandscape {
-            // 横屏模式：使用修正后的Safe Area计算范围
-            let leftBound: CGFloat = safeAreaInsets.left   // 59 (对应竖屏top)
-            let rightBound: CGFloat = bounds.width - safeAreaInsets.right  // 852 - 34 = 818 (对应竖屏bottom)
-            
-            #if DEBUG
-            if arc4random_uniform(300) == 0 { // 每300帧打印一次
-                print("横屏宽度范围计算(修正后Safe Area): left=\(leftBound), right=\(rightBound)")
-                print("修正后safeArea.left=\(safeAreaInsets.left), safeArea.right=\(safeAreaInsets.right)")
-                print("bounds.width=\(bounds.width)")
-            }
-            #endif
-            
-            return leftBound...rightBound
+            // 横屏模式：使用frameSize坐标系（与竖屏保持一致）
+            return 0.0...Device.frameSize.width
         } else {
-            // 竖屏模式：left和right通常为0
+            // 竖屏模式：left和right通常为0，使用屏幕坐标
             return safeAreaInsets.left...(bounds.width - safeAreaInsets.right)
         }
     }
@@ -193,21 +170,10 @@ struct Ranges {
         let bounds = UIScreen.main.bounds
         
         if Device.isLandscape {
-            // 横屏模式：使用修正后的Safe Area计算范围
-            let topBound: CGFloat = safeAreaInsets.top    // 0 (修正后)
-            let bottomBound: CGFloat = bounds.height - safeAreaInsets.bottom  // 393 - 0 = 393 (修正后)
-            
-            #if DEBUG
-            if arc4random_uniform(300) == 0 { // 每300帧打印一次
-                print("横屏高度范围计算(修正后Safe Area): top=\(topBound), bottom=\(bottomBound)")
-                print("frameSize.height=\(Device.frameSize.height), bounds.height=\(bounds.height)")
-                print("修正后safeArea.top=\(safeAreaInsets.top), safeArea.bottom=\(safeAreaInsets.bottom)")
-            }
-            #endif
-            
-            return topBound...bottomBound
+            // 横屏模式：使用frameSize坐标系（与竖屏保持一致）
+            return 0.0...Device.frameSize.height
         } else {
-            // 竖屏模式：使用原有逻辑
+            // 竖屏模式：使用原有逻辑（frameSize坐标系）
             return 0.0...Device.frameSize.height
         }
     }
