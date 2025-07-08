@@ -14,6 +14,7 @@ class TrajectoryManager: ObservableObject {
     @Published var countdownValue: Int = 5
     @Published var showCountdown: Bool = false
     @Published var showTrajectoryView: Bool = false
+    @Published var showExportAlert: Bool = false
     
     // 添加新的轨迹点
     func addTrajectoryPoint(point: CGPoint) {

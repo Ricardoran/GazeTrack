@@ -4,6 +4,9 @@ import AVKit
 
 
 struct ContentView: View {
+    let mode: ViewMode
+    @Binding var currentView: AppView
+    
     // 眼动追踪状态
     @State private var eyeGazeActive: Bool = false
     @State private var lookAtPoint: CGPoint?
@@ -95,52 +98,81 @@ struct ContentView: View {
                     .opacity(0.7)
             }
 
-            // 按钮组
+            // Back button
+            VStack {
+                HStack {
+                    Button(action: {
+                        currentView = .landing
+                    }) {
+                        HStack {
+                            Image(systemName: "chevron.left")
+                            Text("Back")
+                        }
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.black.opacity(0.7))
+                        .cornerRadius(10)
+                    }
+                    .padding()
+                    
+                    Spacer()
+                }
+                Spacer()
+            }
+            .zIndex(1000)
+            
+            // 按钮组 - 根据模式显示不同按钮
             VStack(spacing: 20) {
                 Group {
-                    // 校准按钮
-                    Button("开始校准") {
-                        if let vc = self.getRootViewController() {
-                            checkCameraPermissionAndStartCalibration(presentingViewController: vc)
-                        } else {
-                            showCalibrationGreeting = true
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                                showCalibrationGreeting = false
-                                handleCalibration()
+                    // 校准按钮 - 只在校准模式显示
+                    if mode == .calibration {
+                        Button("开始校准") {
+                            if let vc = self.getRootViewController() {
+                                checkCameraPermissionAndStartCalibration(presentingViewController: vc)
+                            } else {
+                                showCalibrationGreeting = true
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                                    showCalibrationGreeting = false
+                                    handleCalibration()
+                                }
                             }
                         }
-                    }
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(Color.red)
-                    .cornerRadius(10)
-                    
-                    // // 测量按钮 暂时隐藏，demo没有用
-                    // Button("开始测量") {
-                    //     calibrationManager.startMeasurement()
-                    // }
-                    // .font(.headline)
-                    // .foregroundColor(.white)
-                    // .padding()
-                    // .background(Color.orange)
-                    // .cornerRadius(10)
-                    
-                    // 视频模式切换按钮
-                    Button(action: {
-                        videoManager.toggleVideoMode()
-                        uiManager.resetButtonHideTimer()
-                    }) {
-                        Text(videoManager.videoMode ? "相机" : "视频")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.purple)
-                            .cornerRadius(10)
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.red)
+                        .cornerRadius(10)
                     }
                     
-                    // 视频透明度滑块（仅在视频模式下显示）
-                    if videoManager.videoMode {
+                    // 测量按钮 - 只在测量模式显示
+                    if mode == .measurement {
+                        Button("开始测量") {
+                            calibrationManager.startMeasurement()
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.orange)
+                        .cornerRadius(10)
+                    }
+                    
+                    // 视频模式切换按钮 - 只在眼动追踪模式显示
+                    if mode == .gazeTrack {
+                        Button(action: {
+                            videoManager.toggleVideoMode()
+                            uiManager.resetButtonHideTimer()
+                        }) {
+                            Text(videoManager.videoMode ? "相机" : "视频")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(Color.purple)
+                                .cornerRadius(10)
+                        }
+                    }
+                    
+                    // 视频透明度滑块（仅在视频模式下显示，且在眼动追踪模式）
+                    if videoManager.videoMode && mode == .gazeTrack {
                         VStack(alignment: .leading, spacing: 5) {
                             Text("视频透明度: \(Int(videoManager.videoOpacity * 100))%")
                                 .font(.subheadline)
@@ -162,52 +194,55 @@ struct ContentView: View {
                         .padding(.vertical, 5)
                     }
                     
-                    // 开始/停止按钮
-                    Button(action: {
-                        if let vc = self.getRootViewController() {
-                            self.checkCameraPermissionAndStartGazeTrack(presentingViewController: vc)
-                        } else {
-                            handleStartStop()
+                    // 开始/停止按钮 - 只在眼动追踪模式显示
+                    if mode == .gazeTrack {
+                        Button(action: {
+                            if let vc = self.getRootViewController() {
+                                self.checkCameraPermissionAndStartGazeTrack(presentingViewController: vc)
+                            } else {
+                                handleStartStop()
+                            }
+                            uiManager.resetButtonHideTimer()
+                        }) {
+                            Text(eyeGazeActive ? "停止" : "开始")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(Color.blue)
+                                .cornerRadius(10)
                         }
-                        uiManager.resetButtonHideTimer()
-                    }) {
-                        Text(eyeGazeActive ? "停止" : "开始")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.blue)
-                            .cornerRadius(10)
+                        
+                        // Export Trajectory Button - only in gaze track mode
+                        Button(action: {
+                            handleExportTrajectory()
+                            uiManager.resetButtonHideTimer()
+                        }) {
+                            Text("Export Trajectory")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(Color.green)
+                                .cornerRadius(10)
+                                .opacity((eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory()) ? 0.5 : 1.0)
+                        }
+                        .disabled(eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory())
+                        
+                        // Visualize Trajectory Button - only in gaze track mode
+                        Button(action: {
+                            trajectoryManager.showTrajectoryView.toggle()
+                            uiManager.resetButtonHideTimer()
+                        }) {
+                            Text("Visualize Trajectory")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(Color.orange)
+                                .cornerRadius(10)
+                                .opacity((eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory()) ? 0.5 : 1.0)
+                        }
+                        .disabled(eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory())
                     }
                     
-                    // 导出轨迹按钮
-                    Button(action: {
-                        handleExportTrajectory()
-                        uiManager.resetButtonHideTimer()
-                    }) {
-                        Text("导出轨迹")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.green)
-                            .cornerRadius(10)
-                            .opacity((eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory()) ? 0.5 : 1.0)
-                    }
-                    .disabled(eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory())
-                    
-                    // 显示轨迹图按钮
-                    Button(action: {
-                        trajectoryManager.showTrajectoryView.toggle()
-                        uiManager.resetButtonHideTimer()
-                    }) {
-                        Text("显示轨迹")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.orange)
-                            .cornerRadius(10)
-                            .opacity((eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory()) ? 0.5 : 1.0)
-                    }
-                    .disabled(eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory())
                 }
                 .opacity(uiManager.showButtons ? 1 : 0)
             }
@@ -218,6 +253,11 @@ struct ContentView: View {
                 Alert(title: Text("导出完成"),
                       message: Text("轨迹导出成功。"),
                       dismissButton: .default(Text("确定")))
+            }
+            .alert(isPresented: $trajectoryManager.showExportAlert) {
+                Alert(title: Text("Export Complete"),
+                      message: Text("Trajectory exported successfully."),
+                      dismissButton: .default(Text("OK")))
             }
 
             // 轨迹可视化视图
@@ -376,7 +416,7 @@ struct ContentView: View {
     func handleExportTrajectory() {
         print("导出包含 \(trajectoryManager.gazeTrajectory.count) 个数据点的轨迹...")
         trajectoryManager.exportTrajectory {
-            uiManager.showExportAlert = true
+            trajectoryManager.showExportAlert = true
         }
     }
     
@@ -424,7 +464,7 @@ struct ContentView: View {
 #if DEBUG
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView()
+        ContentView(mode: .gazeTrack, currentView: .constant(.gazeTrack))
     }
 }
 #endif
