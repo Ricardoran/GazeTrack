@@ -16,6 +16,7 @@ struct ContentView: View {
 
     // 管理器
     @StateObject private var calibrationManager = CalibrationManager()
+    @StateObject private var measurementManager = MeasurementManager()
     @StateObject private var trajectoryManager = TrajectoryManager()
     @StateObject private var videoManager = VideoManager()
     @StateObject private var uiManager = UIManager()
@@ -27,7 +28,8 @@ struct ContentView: View {
                 eyeGazeActive: $eyeGazeActive,
                 lookAtPoint: $lookAtPoint,
                 isWinking: $isWinking,
-                calibrationManager: calibrationManager
+                calibrationManager: calibrationManager,
+                measurementManager: measurementManager
             )
             .onReceive(timerPublisher) { _ in
                 if eyeGazeActive && !trajectoryManager.isCountingDown,
@@ -79,18 +81,24 @@ struct ContentView: View {
             }
 
             // 校准点视图（在测量模式下或在校准模式下，显示这些已知位置的校准点，蓝色）
-            if (calibrationManager.isCalibrating || calibrationManager.isMeasuring) && calibrationManager.showCalibrationPoint,
-               let calibrationPoint = calibrationManager.currentCalibrationPoint {
-                Circle()
-                    .fill(Color.blue)
-                    .frame(width: 30, height: 30)
-                    .position(calibrationPoint)
-                    .transition(.scale.combined(with: .opacity))
-                    .animation(.easeInOut(duration: 0.3), value: calibrationManager.currentPointIndex)
+            if (calibrationManager.isCalibrating && calibrationManager.showCalibrationPoint) || 
+               (measurementManager.isMeasuring && measurementManager.showCalibrationPoint) {
+                let calibrationPoint = calibrationManager.isCalibrating ? 
+                    calibrationManager.currentCalibrationPoint : 
+                    measurementManager.currentMeasurementPoint
+                
+                if let point = calibrationPoint {
+                    Circle()
+                        .fill(Color.blue)
+                        .frame(width: 30, height: 30)
+                        .position(point)
+                        .transition(.scale.combined(with: .opacity))
+                        .animation(.easeInOut(duration: 0.3), value: calibrationManager.isCalibrating ? calibrationManager.currentPointIndex : measurementManager.currentPointIndex)
+                }
             }
             
             // 注视点视图（在测量模式下或在校准模式下， 显示这些已知位置的注视点，绿色，半透明）
-            if calibrationManager.isMeasuring, let lookAtPoint = lookAtPoint {
+            if measurementManager.isMeasuring, let lookAtPoint = lookAtPoint {
                 Circle()
                     .fill(Color.green)
                     .frame(width: 40, height: 40)
@@ -104,6 +112,7 @@ struct ContentView: View {
                     Button(action: {
                         // Stop any ongoing calibration or measurement process
                         calibrationManager.stopCalibration()
+                        measurementManager.stopMeasurement()
                         eyeGazeActive = false
                         currentView = .landing
                     }) {
@@ -150,7 +159,7 @@ struct ContentView: View {
                     // 测量按钮 - 只在测量模式显示
                     if mode == .measurement {
                         Button("开始测量") {
-                            calibrationManager.startMeasurement()
+                            measurementManager.startMeasurement()
                         }
                         .font(.headline)
                         .foregroundColor(.white)
@@ -294,7 +303,7 @@ struct ContentView: View {
             }
 
             // 测量结果视图 - 添加此视图
-            if calibrationManager.showMeasurementResults {
+            if measurementManager.showMeasurementResults {
                 ZStack {
                     Color.black.opacity(0.8)
                         .edgesIgnoringSafeArea(.all)
@@ -305,13 +314,13 @@ struct ContentView: View {
                             .fontWeight(.bold)
                             .foregroundColor(.white)
                         
-                        Text("平均误差: \(String(format: "%.2f", calibrationManager.averageError)) pt")
+                        Text("平均误差: \(String(format: "%.2f", measurementManager.averageError)) pt")
                             .font(.headline)
                             .foregroundColor(.white)
                         
                         VStack(alignment: .leading, spacing: 10) {
-                            ForEach(0..<calibrationManager.measurementResults.count, id: \.self) { index in
-                                let result = calibrationManager.measurementResults[index]
+                            ForEach(0..<measurementManager.measurementResults.count, id: \.self) { index in
+                                let result = measurementManager.measurementResults[index]
                                 Text("点 \(index + 1): 误差 = \(String(format: "%.2f", result.error)) pt")
                                     .foregroundColor(.white)
                             }
@@ -321,7 +330,7 @@ struct ContentView: View {
                         .cornerRadius(10)
                         
                         Button("关闭") {
-                            calibrationManager.showMeasurementResults = false
+                            measurementManager.showMeasurementResults = false
                         }
                         .font(.headline)
                         .foregroundColor(.white)
@@ -369,6 +378,7 @@ struct ContentView: View {
         .onDisappear {
             // 清理资源
             calibrationManager.stopCalibration()
+            measurementManager.stopMeasurement()
             eyeGazeActive = false
             uiManager.cleanup()
             videoManager.cleanup()
@@ -414,7 +424,7 @@ struct ContentView: View {
     
     // 处理测量
     func handleMeasurement() {
-        calibrationManager.startMeasurement()
+        measurementManager.startMeasurement()
     }
     
     // 处理导出轨迹

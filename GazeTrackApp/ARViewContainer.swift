@@ -16,14 +16,16 @@ struct ARViewContainer: UIViewRepresentable {
     @Binding var eyeGazeActive: Bool
     @Binding var lookAtPoint: CGPoint?
     @Binding var isWinking: Bool
-    @StateObject var calibrationManager: CalibrationManager  // 添加校准管理器
+    @StateObject var calibrationManager: CalibrationManager
+    @StateObject var measurementManager: MeasurementManager
     
     func makeUIView(context: Context) -> CustomARView {
         return CustomARView(
             eyeGazeActive: $eyeGazeActive,
             lookAtPoint: $lookAtPoint,
             isWinking: $isWinking,
-            calibrationManager: calibrationManager
+            calibrationManager: calibrationManager,
+            measurementManager: measurementManager
         )
     }
     
@@ -35,18 +37,21 @@ class CustomARView: ARView, ARSessionDelegate {
     @Binding var lookAtPoint: CGPoint?
     @Binding var isWinking: Bool
     var calibrationManager: CalibrationManager
+    var measurementManager: MeasurementManager
     
     init(eyeGazeActive: Binding<Bool>,
          lookAtPoint: Binding<CGPoint?>,
          isWinking: Binding<Bool>,
-         calibrationManager: CalibrationManager) {
+         calibrationManager: CalibrationManager,
+         measurementManager: MeasurementManager) {
         self.calibrationManager = calibrationManager
+        self.measurementManager = measurementManager
         _eyeGazeActive = eyeGazeActive
         _lookAtPoint = lookAtPoint
         _isWinking = isWinking
         super.init(frame: .zero)
         self.session.delegate = self
-        calibrationManager.arView = self  // 将ARView传递给校准管理器
+        calibrationManager.arView = self
         let configuration = ARFaceTrackingConfiguration()
         self.session.run(configuration)
     }
@@ -69,9 +74,9 @@ class CustomARView: ARView, ARSessionDelegate {
         }
         
         // 如果在测量模式下，收集测量数据
-        if calibrationManager.isMeasuring && calibrationManager.showCalibrationPoint {
+        if measurementManager.isMeasuring && measurementManager.showCalibrationPoint {
             if let point = lookAtPoint {
-                calibrationManager.collectMeasurementPoint(point)
+                measurementManager.collectMeasurementPoint(point)
             }
         }
         
