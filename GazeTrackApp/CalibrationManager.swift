@@ -93,7 +93,6 @@ class CalibrationManager: ObservableObject {
     }
 
     
-    // 新增：收集测量数据（优化版）
     func collectMeasurementPoint(_ point: CGPoint) {
         guard isMeasuring && showCalibrationPoint else { return }
         
@@ -134,27 +133,12 @@ class CalibrationManager: ObservableObject {
                             gazeVectors: self.currentPointGazeVectors
                         )
                     )
-                    // 调试日志（仅在开发时打开）
-                    #if DEBUG
-                    // 每60帧打印一次，避免日志过多
-                    if arc4random_uniform(60) == 0 {
-                        print("已经收集到此校准点视线向量")
-                    }
-                    #endif
                     self.currentPointGazeVectors.removeAll()
-                    // 调试日志（仅在开发时打开）
-                    #if DEBUG
-                    // 每60帧打印一次，避免日志过多
-                    if arc4random_uniform(60) == 0 {
-                        print("请移动注视点，使得光标移动到校验点，并尽量保存不动")
-                    }
-                    #endif
                     self.temporaryMessage = "⏱ 5秒等待结束，开始执行校准，请使用余光注视，使光标移动至校准点并等待完成"
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                         self.temporaryMessage = nil
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-
                         self.isCollecting = true
                         self.correctprocess()
                     }
@@ -213,11 +197,6 @@ class CalibrationManager: ObservableObject {
     }
 
 
-
-            
-
-
-    // 新增：显示下一个测量点（优化版）
     private func showNextMeasurementPoint() {
         guard currentPointIndex < calibrationPositions.count else {
             finishMeasurement()
@@ -317,7 +296,7 @@ class CalibrationManager: ObservableObject {
             return false
         }
     }
-    // 高斯距离加权平均-》计算校准向量
+    // 高斯距离加权平均 => 计算校准向量
 
     func computeCalibrationPoints(from positions: [(x: CGFloat, y: CGFloat)]) -> [CGPoint] {
         let frameSize = Device.frameSize
@@ -381,17 +360,17 @@ class CalibrationManager: ObservableObject {
             print("ARView 未初始化")
             return 
         }
-        let lookScreenPoint = arView.detectGazePoint(faceAnchor: faceAnchor)
-        let correctionalVector = guessCorrectionalVector(for : lookScreenPoint) * 0.6
+        let lookAtPointOnScreen = arView.detectGazePoint(faceAnchor: faceAnchor)
+        let correctionalVector = guessCorrectionalVector(for : lookAtPointOnScreen) * 0.6
         let overrideLookAtPoint = faceAnchor.lookAtPoint + correctionalVector
-        print("已经得到校准向量:")
-        print(correctionalVector)
-        print("屏幕观测点")
-        print(lookScreenPoint)
-        print("修正后的向量")
-        print(overrideLookAtPoint)
-        print("修正后的屏幕观测点")
-        print(arView.detectGazePointAfterCalibration(faceAnchor: faceAnchor, overrideLookAtPoint: overrideLookAtPoint))
+//        print("已经得到校准向量:")
+//        print(correctionalVector)
+//        print("屏幕观测点")
+//        print(lookScreenPoint)
+//        print("修正后的向量")
+//        print(overrideLookAtPoint)
+//        print("修正后的屏幕观测点")
+//        print(arView.detectGazePointAfterCalibration(faceAnchor: faceAnchor, overrideLookAtPoint: overrideLookAtPoint))
         arView.updateDetectGazePointAfterCalibration(faceAnchor: faceAnchor, overrideLookAtPoint: overrideLookAtPoint)
     }
 

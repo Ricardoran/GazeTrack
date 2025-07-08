@@ -63,8 +63,10 @@ class CustomARView: ARView, ARSessionDelegate {
             calibrationManager.collectGazeVector(from:faceAnchor)
         }
         
-        // 更新lookAtPoint（无论在什么模式下）
-        updateDetectGazePoint(faceAnchor: faceAnchor)
+        // 更新lookAtPoint用于测量模式（无论是否在追踪模式下都需要基础的gaze point）
+        if !eyeGazeActive || (eyeGazeActive && !calibrationManager.calibrationCompleted) {
+            updateDetectGazePoint(faceAnchor: faceAnchor)
+        }
         
         // 如果在测量模式下，收集测量数据
         if calibrationManager.isMeasuring && calibrationManager.showCalibrationPoint {
@@ -73,24 +75,15 @@ class CustomARView: ARView, ARSessionDelegate {
             }
         }
         
-        // 如果在追踪模式下，使用校准后的模型
+        // 如果在追踪模式下，且校准完成，使用校准后的模型
         if eyeGazeActive {
             if calibrationManager.calibrationCompleted{
-//                #if DEBUG
-//                if arc4random_uniform(60) == 0 {
-//                    print("已经完成了校准，开启眼动追踪")
-//                }
-//                #endif
+                #if DEBUG
+                if arc4random_uniform(300) == 0 {
+                    print("已经完成了校准，开启眼动追踪")
+                }
+                #endif
                 calibrationManager.predictScreenPoint(from:faceAnchor)
-
-            } else {
-                // 如果没有校准或校准失败，使用原始坐标计算方法
-//                #if DEBUG
-//                if arc4random_uniform(60) == 0 {
-//                    print("未校准模式，开启眼动追踪")
-//                }
-//                #endif
-                updateDetectGazePoint(faceAnchor: faceAnchor)
             }
         }
 //        self.configureDebugOptions()
