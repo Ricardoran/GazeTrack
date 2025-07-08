@@ -70,13 +70,9 @@ struct Device {
         let (ppi, screenWidthInMeter, screenHeightInMeter) = {
             // 默认使用 iPhone 配置（如 iPhone 14 Pro）
             return (460.0, 0.0651318, 0.1412057)
+            // return (264.0, 0.159778, 0.229921)
         }()
 
-//         Updated PPI for iPad air 4
-//         let ppi: CGFloat = 264
-//         // actual screen size in meters for ipad air 4 10.9 inch
-//         let screenWidthInMeter = 0.159778
-//         let screenHeightInMeter = 0.229921
 
         let a_ratio = (screenWidthPixel / ppi) / screenWidthInMeter
         let b_ratio = (screenHeightPixel / ppi) / screenHeightInMeter

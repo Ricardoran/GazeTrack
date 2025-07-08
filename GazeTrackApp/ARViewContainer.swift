@@ -45,24 +45,14 @@ class CustomARView: ARView, ARSessionDelegate {
         _lookAtPoint = lookAtPoint
         _isWinking = isWinking
         super.init(frame: .zero)
-//        self.configureDebugOptions()
         self.session.delegate = self
         calibrationManager.arView = self  // 将ARView传递给校准管理器
         let configuration = ARFaceTrackingConfiguration()
         self.session.run(configuration)
     }
     
-//    func configureDebugOptions() {
-//        self.debugOptions = [
-//            .showStatistics,         // 显示帧率和性能信息
-//            .showWorldOrigin,        // 显示世界坐标原点
-//            .showAnchorOrigins,      // 显示 Anchor 原点
-//            .showAnchorGeometry,     // 显示 Anchor 检测几何图形
-//            .showFeaturePoints,       // 显示点云信息
-//            .showSceneUnderstanding // 若 iOS ≥ 13.4 且使用 Scene Reconstruction 可启用
-//        ]
-//    }
-//    
+
+   
     func session(_ session: ARSession, didUpdate anchors: [ARAnchor]) {
         guard let faceAnchor = anchors.compactMap({ $0 as? ARFaceAnchor }).first else {
             return
@@ -103,7 +93,8 @@ class CustomARView: ARView, ARSessionDelegate {
                 updateDetectGazePoint(faceAnchor: faceAnchor)
             }
         }
-        
+//        self.configureDebugOptions()
+//        self.showLocalLookVector(from: faceAnchor)
         detectWink(faceAnchor: faceAnchor)
         detectEyebrowRaise(faceAnchor: faceAnchor)
     }
@@ -162,7 +153,6 @@ class CustomARView: ARView, ARSessionDelegate {
             let safeAreaInsets = Device.getSafeAreaInsets()
             let rawFocusPoint = CGPoint(x: CGFloat(screenX), y: CGFloat(screenY))
             
-            let physicalSize = Device.orientationAwareScreenSize
             
             print("=== 眼动追踪坐标转换调试 ===")
             print("当前方向:", Device.isCameraOnLeft ? "摄像头在左" : Device.isCameraOnRight ? "摄像头在右" : "竖屏")
@@ -213,6 +203,42 @@ class CustomARView: ARView, ARSessionDelegate {
         DispatchQueue.main.async {
             self.lookAtPoint = focusPoint
         }
+    }
+
+    func showLocalLookVector(from faceAnchor: ARFaceAnchor) {
+        if let oldAnchor = self.scene.anchors.first(where: { $0.name == "localLookVectorAnchor" }) {
+            self.scene.anchors.remove(oldAnchor)
+        }
+
+        let localLookAt = faceAnchor.lookAtPoint
+        let vectorLength = simd_length(localLookAt)
+        guard vectorLength > 0.001 else { return }
+
+        // 🟢 起点球体（face local 原点）
+        let startSphere = ModelEntity(
+            mesh: .generateSphere(radius: 0.05),
+            materials: [SimpleMaterial(color: .green, isMetallic: false)]
+        )
+        startSphere.position = [0, 0, 0]
+
+        // ✅ 将球体添加到以 faceAnchor.transform 为变换的 anchor 上
+        let anchor = AnchorEntity()
+        anchor.transform.matrix = faceAnchor.transform
+        anchor.name = "localLookVectorAnchor"
+        anchor.addChild(startSphere)
+
+        self.scene.anchors.append(anchor)
+    }
+    
+    func configureDebugOptions() {
+        self.debugOptions = [
+            .showStatistics,         // 显示帧率和性能信息
+            .showWorldOrigin,        // 显示世界坐标原点
+            .showAnchorOrigins,      // 显示 Anchor 原点
+            .showAnchorGeometry,     // 显示 Anchor 检测几何图形
+            .showFeaturePoints,       // 显示点云信息
+            .showSceneUnderstanding // 若 iOS ≥ 13.4 且使用 Scene Reconstruction 可启用
+        ]
     }
     
     private func detectWink(faceAnchor: ARFaceAnchor) {
