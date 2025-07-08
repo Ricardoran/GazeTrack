@@ -123,6 +123,9 @@ class CalibrationManager: ObservableObject {
         
         // 延长每个点的显示时间到3秒，给用户足够时间注视
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            // 检查校准是否仍在进行
+            guard self.isCalibrating else { return }
+            
             self.isCollecting = false
             if let currentPoint = self.currentCalibrationPoint {
                 // 只有当收集到足够的数据时才继续
@@ -136,9 +139,11 @@ class CalibrationManager: ObservableObject {
                     self.currentPointGazeVectors.removeAll()
                     self.temporaryMessage = "⏱ 5秒等待结束，开始执行校准，请使用余光注视，使光标移动至校准点并等待完成"
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        guard self.isCalibrating else { return }
                         self.temporaryMessage = nil
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                        guard self.isCalibrating else { return }
                         self.isCollecting = true
                         self.correctprocess()
                     }
@@ -155,6 +160,9 @@ class CalibrationManager: ObservableObject {
     }
     private func correctprocess() { 
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            // 检查校准是否仍在进行
+            guard self.isCalibrating else { return }
+            
             if let currentPoint = self.currentCalibrationPoint {
                 if self.currentPointGazeVectors.count >= 30 {
                     guard let faceAnchor = self.faceAnchorCalibration else { return  }
@@ -184,7 +192,7 @@ class CalibrationManager: ObservableObject {
                         self.correctprocess()
                     }
                 }else{
-                    if(self.isCalibrating == false){
+                    if(self.isCalibrating == false && self.isMeasuring == false){
                         return
                     }
                     print("对齐数据不足，重新采集当前点")
@@ -209,6 +217,9 @@ class CalibrationManager: ObservableObject {
         
         // 显示每个点5秒，给用户更充足的时间注视
         DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+            // 检查测量是否仍在进行
+            guard self.isMeasuring else { return }
+            
             if let currentPoint = self.currentCalibrationPoint {
                 // 计算当前点的平均注视位置
                 if !self.currentMeasurementPoints.isEmpty {
@@ -255,6 +266,9 @@ class CalibrationManager: ObservableObject {
     
     // 完成测量
     func finishMeasurement() {
+        // 检查测量是否仍在进行，如果已停止则直接返回
+        guard isMeasuring else { return }
+        
         isMeasuring = false
         measurementCompleted = true
         showCalibrationPoint = false

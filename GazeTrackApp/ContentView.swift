@@ -102,6 +102,9 @@ struct ContentView: View {
             VStack {
                 HStack {
                     Button(action: {
+                        // Stop any ongoing calibration or measurement process
+                        calibrationManager.stopCalibration()
+                        eyeGazeActive = false
                         currentView = .landing
                     }) {
                         HStack {
@@ -365,6 +368,8 @@ struct ContentView: View {
         }
         .onDisappear {
             // 清理资源
+            calibrationManager.stopCalibration()
+            eyeGazeActive = false
             uiManager.cleanup()
             videoManager.cleanup()
         }
