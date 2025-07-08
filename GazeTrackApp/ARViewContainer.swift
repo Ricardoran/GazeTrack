@@ -82,8 +82,11 @@ class CustomARView: ARView, ARSessionDelegate {
         
         // 如果在8字形轨迹测量模式下，收集轨迹测量数据
         if measurementManager.isTrajectoryMeasuring {
-            if let point = lookAtPoint {
-                measurementManager.collectTrajectoryMeasurementPoint(point)
+            if let point = lookAtPoint,
+               let cameraTransform = session.currentFrame?.camera.transform {
+                // 计算实际的面部到屏幕距离
+                let faceDistanceToCamera = calculateFaceToScreenDistance(faceAnchor: faceAnchor, cameraTransform: cameraTransform)
+                measurementManager.collectTrajectoryMeasurementPoint(point, eyeToScreenDistance: faceDistanceToCamera)
             }
         }
         
@@ -212,6 +215,29 @@ class CustomARView: ARView, ARSessionDelegate {
         DispatchQueue.main.async {
             self.lookAtPoint = focusPoint
         }
+    }
+    
+    func calculateFaceToScreenDistance(faceAnchor: ARFaceAnchor, cameraTransform: simd_float4x4) -> Float {
+        // Calculate face center position in world coordinates
+        let faceWorldPosition = faceAnchor.transform.columns.3
+        
+        // Calculate camera position in world coordinates
+        let cameraWorldPosition = cameraTransform.columns.3
+        
+        // Calculate the distance vector from face to camera
+        let distanceVector = simd_float3(
+            faceWorldPosition.x - cameraWorldPosition.x,
+            faceWorldPosition.y - cameraWorldPosition.y,
+            faceWorldPosition.z - cameraWorldPosition.z
+        )
+        
+        // Calculate the magnitude (distance) in meters
+        let distanceInMeters = simd_length(distanceVector)
+        
+        // Convert to centimeters
+        let distanceInCentimeters = distanceInMeters * 100.0
+        
+        return distanceInCentimeters
     }
 
     func showLocalLookVector(from faceAnchor: ARFaceAnchor) {

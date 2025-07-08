@@ -108,6 +108,23 @@ struct Device {
         return centimeters
     }
     
+    // 将厘米误差转换为角度误差（度）
+    static func centimetersToDegrees(_ centimeters: Double, eyeToScreenDistance: Double) -> Double {
+        // 使用反正切函数计算角度
+        // angle_degrees = atan(distance_cm / eye_to_screen_distance_cm) * (180/π)
+        let angleRadians = atan(centimeters / eyeToScreenDistance)
+        let angleDegrees = angleRadians * (180.0 / Double.pi)
+        
+        return angleDegrees
+    }
+    
+    // 预估默认的眼睛到屏幕距离（厘米）
+    static var defaultEyeToScreenDistance: Double {
+        // 根据研究，人眼到手机屏幕的典型距离约为25-40厘米
+        // 我们使用30厘米作为默认值
+        return 30.0
+    }
+    
     // 获取安全区域的尺寸
     static func getSafeAreaInsets() -> UIEdgeInsets {
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,

@@ -25,7 +25,7 @@ struct TrajectoryComparisonView: View {
             
             VStack {
                 // 标题
-                VStack(spacing: 10) {
+                VStack(spacing: 20) {
                     HStack {
                         Spacer()
                         
@@ -35,6 +35,7 @@ struct TrajectoryComparisonView: View {
                         
                         Spacer()
                     }
+                    .padding(.top, 10)
                     
                     HStack {
                         Button("返回结果页面") {
@@ -57,6 +58,7 @@ struct TrajectoryComparisonView: View {
                     }
                 }
                 .padding()
+                .padding(.top, 40)
                 
                 // 轨迹可视化
                 GeometryReader { geometry in
@@ -114,7 +116,7 @@ struct TrajectoryComparisonView: View {
                                 Rectangle()
                                     .fill(Color.red)
                                     .frame(width: 20, height: 3)
-                                Text("目标轨迹 (Ground Truth)")
+                                Text("目标轨迹")
                                     .font(.caption)
                             }
                             
@@ -122,63 +124,68 @@ struct TrajectoryComparisonView: View {
                                 Circle()
                                     .fill(Color.blue.opacity(0.8))
                                     .frame(width: 6, height: 6)
-                                Text("实际轨迹 (Eye Tracking)")
+                                Text("实际轨迹")
                                     .font(.caption)
                             }
                         }
                         
-                        // ME(Mean Euclidean)显示 - 主要指标
-                        VStack(spacing: 8) {
-                            Text("ME(Mean Euclidean): \(String(format: "%.4f", trajectoryResults.meanEuclideanErrorInCM)) (CM)")
-                                .font(.subheadline)
-                                .fontWeight(.bold)
-                                .foregroundColor(.black)
-                            
-                            Text("Data size: \(trajectoryResults.dataSize)")
-                                .font(.subheadline)
-                                .fontWeight(.bold)
-                                .foregroundColor(.black)
-                        }
-                        .padding()
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(8)
-                        
-                        // 其他统计信息
-                        HStack(spacing: 20) {
-                            VStack {
-                                Text("平均误差")
+                        // 主要测量结果
+                        VStack(spacing: 12) {
+                            // 距离误差
+                            VStack(spacing: 4) {
+                                Text("平均距离误差")
                                     .font(.caption)
                                     .foregroundColor(.gray)
-                                Text("\(String(format: "%.1f", trajectoryResults.averageError)) pt")
-                                    .font(.subheadline)
+                                Text("\(String(format: "%.4f", trajectoryResults.meanEuclideanErrorInCM)) cm")
+                                    .font(.title3)
                                     .fontWeight(.bold)
+                                    .foregroundColor(.black)
                             }
+                            .padding(.vertical, 8)
                             
-                            VStack {
-                                Text("最大误差")
+                            // 角度误差
+                            VStack(spacing: 4) {
+                                Text("平均角度误差")
                                     .font(.caption)
                                     .foregroundColor(.gray)
-                                Text("\(String(format: "%.1f", trajectoryResults.maxError)) pt")
-                                    .font(.subheadline)
+                                Text("\(String(format: "%.4f", trajectoryResults.meanEuclideanErrorInDegrees))°")
+                                    .font(.title3)
                                     .fontWeight(.bold)
+                                    .foregroundColor(.blue)
                             }
+                            .padding(.vertical, 8)
                             
-                            VStack {
-                                Text("覆盖率")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                Text("\(String(format: "%.1f", trajectoryResults.coveragePercentage * 100))%")
-                                    .font(.subheadline)
-                                    .fontWeight(.bold)
-                            }
-                            
-                            VStack {
-                                Text("采样点数")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                Text("\(sampleTrajectoryPoints().count)")
-                                    .font(.subheadline)
-                                    .fontWeight(.bold)
+                            // 测量信息
+                            HStack(spacing: 30) {
+                                VStack(spacing: 4) {
+                                    Text("数据点数")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                    Text("\(trajectoryResults.dataSize)")
+                                        .font(.subheadline)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.black)
+                                }
+                                
+                                VStack(spacing: 4) {
+                                    Text("平均距离")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                    Text("\(String(format: "%.1f", trajectoryResults.averageEyeToScreenDistance)) cm")
+                                        .font(.subheadline)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.purple)
+                                }
+                                
+                                VStack(spacing: 4) {
+                                    Text("测量时长")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                    Text("\(String(format: "%.1f", trajectoryResults.totalDuration)) 秒")
+                                        .font(.subheadline)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.orange)
+                                }
                             }
                         }
                     }
@@ -270,7 +277,8 @@ struct TrajectoryComparisonView_Previews: PreviewProvider {
                 targetPosition: CGPoint(x: 200, y: 400),
                 actualPosition: CGPoint(x: 195, y: 405),
                 timestamp: 0.0,
-                error: 7.0
+                error: 7.0,
+                eyeToScreenDistance: 30.0
             )
         ]
         

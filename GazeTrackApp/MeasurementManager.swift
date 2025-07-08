@@ -14,6 +14,7 @@ struct TrajectoryMeasurementPoint {
     let actualPosition: CGPoint
     let timestamp: TimeInterval
     let error: CGFloat
+    let eyeToScreenDistance: Float  // 眼睛到屏幕的距离（厘米）
 }
 
 // 8字形轨迹测量结果
@@ -28,6 +29,37 @@ struct TrajectoryMeasurementResult {
     // 计算ME(Mean Euclidean)误差，以厘米为单位
     var meanEuclideanErrorInCM: Double {
         return Device.pointsToCentimeters(averageError)
+    }
+    
+    // 计算平均眼睛到屏幕距离（基于实际测量数据）
+    var averageEyeToScreenDistance: Double {
+        guard !trajectoryPoints.isEmpty else { return Device.defaultEyeToScreenDistance }
+        let totalDistance = trajectoryPoints.map { Double($0.eyeToScreenDistance) }.reduce(0, +)
+        return totalDistance / Double(trajectoryPoints.count)
+    }
+    
+    // 计算ME(Mean Euclidean)误差，以角度为单位（使用实际测量的平均距离）
+    var meanEuclideanErrorInDegrees: Double {
+        let errorInCM = meanEuclideanErrorInCM
+        return Device.centimetersToDegrees(errorInCM, eyeToScreenDistance: averageEyeToScreenDistance)
+    }
+    
+    // 计算ME(Mean Euclidean)误差，以角度为单位（使用自定义距离）
+    func meanEuclideanErrorInDegrees(eyeToScreenDistance: Double) -> Double {
+        let errorInCM = meanEuclideanErrorInCM
+        return Device.centimetersToDegrees(errorInCM, eyeToScreenDistance: eyeToScreenDistance)
+    }
+    
+    // 计算最大误差，以角度为单位
+    var maxErrorInDegrees: Double {
+        let maxErrorInCM = Device.pointsToCentimeters(maxError)
+        return Device.centimetersToDegrees(maxErrorInCM, eyeToScreenDistance: averageEyeToScreenDistance)
+    }
+    
+    // 计算最小误差，以角度为单位
+    var minErrorInDegrees: Double {
+        let minErrorInCM = Device.pointsToCentimeters(minError)
+        return Device.centimetersToDegrees(minErrorInCM, eyeToScreenDistance: averageEyeToScreenDistance)
     }
     
     // 数据点数量
@@ -56,6 +88,7 @@ class MeasurementManager: ObservableObject {
     @Published var currentTrajectoryPoint: CGPoint = .zero
     @Published var showTrajectoryPoint: Bool = false
     @Published var showTrajectoryVisualization: Bool = false
+    @Published var currentEyeToScreenDistance: Float = 30.0
     
     // 倒计时相关属性
     @Published var isTrajectoryCountingDown: Bool = false
@@ -355,10 +388,13 @@ class MeasurementManager: ObservableObject {
     }
     
     // 收集8字形轨迹测量数据
-    func collectTrajectoryMeasurementPoint(_ actualPoint: CGPoint) {
+    func collectTrajectoryMeasurementPoint(_ actualPoint: CGPoint, eyeToScreenDistance: Float = 30.0) {
         // 只在真正的轨迹测量期间收集数据，倒计时期间不收集
         guard isTrajectoryMeasuring && !isTrajectoryCountingDown,
               let startTime = trajectoryStartTime else { return }
+        
+        // 更新实时距离显示
+        currentEyeToScreenDistance = eyeToScreenDistance
         
         let currentTime = Date().timeIntervalSince(startTime)
         let targetPoint = currentTrajectoryPoint
@@ -366,19 +402,20 @@ class MeasurementManager: ObservableObject {
         // 计算误差
         let error = sqrt(pow(actualPoint.x - targetPoint.x, 2) + pow(actualPoint.y - targetPoint.y, 2))
         
-        // 创建轨迹测量点
+        // 创建轨迹测量点，包含实际测量的距离
         let trajectoryPoint = TrajectoryMeasurementPoint(
             targetPosition: targetPoint,
             actualPosition: actualPoint,
             timestamp: currentTime,
-            error: error
+            error: error,
+            eyeToScreenDistance: eyeToScreenDistance
         )
         
         trajectoryMeasurementPoints.append(trajectoryPoint)
         
         #if DEBUG
         if trajectoryMeasurementPoints.count % 60 == 0 {  // 每秒打印一次
-            print("8字形测量进度: \(Int(trajectoryProgress * 100))%, 当前误差: \(String(format: "%.1f", error))pt, 已采集: \(trajectoryMeasurementPoints.count)点")
+            print("8字形测量进度: \(Int(trajectoryProgress * 100))%, 当前误差: \(String(format: "%.1f", error))pt, 距离: \(String(format: "%.1f", eyeToScreenDistance))cm, 已采集: \(trajectoryMeasurementPoints.count)点")
         }
         #endif
     }
@@ -460,5 +497,6 @@ class MeasurementManager: ObservableObject {
         trajectoryStartTime = nil
         trajectoryProgress = 0.0
         trajectoryCountdownValue = 3
+        currentEyeToScreenDistance = 30.0
     }
 }

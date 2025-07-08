@@ -624,6 +624,40 @@ struct ContentView: View {
                     .frame(width: isWinking ? 100 : 40, height: isWinking ? 100 : 40)
                     .position(lookAtPoint)
             }
+            
+            // 8字形测量过程中的实时距离显示
+            if measurementManager.isTrajectoryMeasuring && !measurementManager.isTrajectoryCountingDown {
+                VStack {
+                    Spacer()
+                    
+                    HStack {
+                        Spacer()
+                        
+                        VStack(spacing: 6) {
+                            Text("实时距离")
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.8))
+                            
+                            Text("\(String(format: "%.1f", measurementManager.currentEyeToScreenDistance)) cm")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                            
+                            Text("眼睛到屏幕距离")
+                                .font(.caption2)
+                                .foregroundColor(.white.opacity(0.6))
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(Color.black.opacity(0.7))
+                        .cornerRadius(10)
+                        .padding(.bottom, 30)
+                        
+                        Spacer()
+                    }
+                }
+                .zIndex(160)
+            }
         }
         .animation(.easeInOut, value: calibrationManager.temporaryMessage)
         .onTapGesture {
