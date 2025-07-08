@@ -489,19 +489,15 @@ struct ContentView: View {
                             
                             // ME(Mean Euclidean)显示 - 突出显示
                             VStack(spacing: 8) {
-                                Text("测量完成")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                    .fontWeight(.medium)
-                                
-                                Text("ME(Mean Euclidean): \(String(format: "%.4f", results.meanEuclideanErrorInCM)) (CM);")
-                                    .font(.title3)
+                                Text("ME(Mean Euclidean): \(String(format: "%.4f", results.meanEuclideanErrorInCM)) (CM)")
+                                    .font(.subheadline)
                                     .foregroundColor(.white)
                                     .fontWeight(.bold)
                                 
-                                Text("Data size: \(results.dataSize)。")
+                                Text("Data size: \(results.dataSize)")
                                     .font(.subheadline)
-                                    .foregroundColor(.white.opacity(0.9))
+                                    .foregroundColor(.white)
+                                    .fontWeight(.bold)
                             }
                             .padding()
                             .background(Color.blue.opacity(0.3))
@@ -523,8 +519,6 @@ struct ContentView: View {
                                 Text("测量时长: \(String(format: "%.1f", results.totalDuration)) 秒")
                                     .foregroundColor(.white)
                                 Text("屏幕覆盖率: \(String(format: "%.1f", results.coveragePercentage * 100))%")
-                                    .foregroundColor(.white)
-                                Text("数据点数量: \(results.trajectoryPoints.count) 个")
                                     .foregroundColor(.white)
                             }
                             .padding()
@@ -552,7 +546,7 @@ struct ContentView: View {
                             HStack(spacing: 20) {
                                 Button("显示轨迹对比") {
                                     measurementManager.showTrajectoryVisualization = true
-                                    measurementManager.showTrajectoryResults = false  // 关闭结果页面
+                                    // 不关闭结果页面，这样返回时还能看到结果
                                 }
                                 .font(.headline)
                                 .foregroundColor(.white)

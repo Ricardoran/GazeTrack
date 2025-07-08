@@ -92,24 +92,18 @@ struct Device {
     
     // 将屏幕上的点距离转换为厘米
     static func pointsToCentimeters(_ points: CGFloat) -> Double {
-        let screenWidthPixel = UIScreen.main.nativeBounds.width
-        let screenHeightPixel = UIScreen.main.nativeBounds.height
+        // 获取设备的scale factor (1x, 2x, 3x等)
+        let scale = UIScreen.main.scale
         
-        // iPhone 配置（如 iPhone 14 Pro）
-        let ppi: Double = 460.0
-        let screenWidthInMeter: Double = 0.0651318
-        let screenHeightInMeter: Double = 0.1412057
+        // 将iOS点转换为实际像素
+        let pixels = Double(points) * Double(scale)
         
-        // 计算比例因子
-        let a_ratio = (screenWidthPixel / ppi) / screenWidthInMeter
-        let b_ratio = (screenHeightPixel / ppi) / screenHeightInMeter
+        // iPhone 14 Pro 配置
+        let ppi: Double = 460.0  // 像素每英寸
         
-        // 使用平均比例因子进行转换
-        let avgRatio = (a_ratio + b_ratio) / 2
-        
-        // 将点转换为英寸，再转换为厘米
-        let inches = Double(points) / ppi
-        let centimeters = inches * 2.54 / avgRatio
+        // 直接使用PPI转换：像素 → 英寸 → 厘米
+        let inches = pixels / ppi
+        let centimeters = inches * 2.54
         
         return centimeters
     }

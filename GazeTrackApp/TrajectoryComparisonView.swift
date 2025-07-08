@@ -37,7 +37,7 @@ struct TrajectoryComparisonView: View {
                     }
                     
                     HStack {
-                        Button("关闭") {
+                        Button("返回结果页面") {
                             showVisualization = false
                         }
                         .padding(.horizontal, 20)
@@ -130,13 +130,14 @@ struct TrajectoryComparisonView: View {
                         // ME(Mean Euclidean)显示 - 主要指标
                         VStack(spacing: 8) {
                             Text("ME(Mean Euclidean): \(String(format: "%.4f", trajectoryResults.meanEuclideanErrorInCM)) (CM)")
-                                .font(.title3)
+                                .font(.subheadline)
                                 .fontWeight(.bold)
                                 .foregroundColor(.black)
                             
                             Text("Data size: \(trajectoryResults.dataSize)")
                                 .font(.subheadline)
-                                .foregroundColor(.gray)
+                                .fontWeight(.bold)
+                                .foregroundColor(.black)
                         }
                         .padding()
                         .background(Color.blue.opacity(0.1))
