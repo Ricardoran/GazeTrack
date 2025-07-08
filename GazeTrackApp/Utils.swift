@@ -10,7 +10,6 @@ import AVFoundation
 import ARKit
 
 struct Device {
-    // MARK: - Device Orientation Detection
     static var currentOrientation: UIInterfaceOrientation {
         if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
             return scene.interfaceOrientation
@@ -26,18 +25,6 @@ struct Device {
     static var isPortrait: Bool {
         let orientation = currentOrientation
         return orientation == .portrait || orientation == .portraitUpsideDown
-    }
-    
-    // 详细的横屏方向检测
-    // 注意：UIInterfaceOrientation的定义可能与直觉相反
-    static var isLandscapeLeft: Bool {
-        // landscapeLeft = 设备逆时针转90度 = 摄像头在右侧
-        return currentOrientation == .landscapeLeft
-    }
-    
-    static var isLandscapeRight: Bool {
-        // landscapeRight = 设备顺时针转90度 = 摄像头在左侧  
-        return currentOrientation == .landscapeRight
     }
     
     // 基于摄像头位置的判断（更直观）
@@ -84,7 +71,6 @@ struct Device {
     // 方向感知的逻辑屏幕尺寸（用于坐标计算）
     static var orientationAwareLogicalSize: CGSize {
         let bounds = UIScreen.main.bounds.size
-        // 在横屏模式下，bounds已经是正确的方向，无需调换
         return bounds
     }
     
@@ -114,9 +100,6 @@ struct Device {
             if arc4random_uniform(300) == 0 {
                 print("=== Safe Area 调试信息 ===")
                 print("设备方向:", isLandscape ? "横屏" : "竖屏")
-                print("系统原始Safe Area:", "top=\(insets.top), bottom=\(insets.bottom), left=\(insets.left), right=\(insets.right)")
-                print("屏幕尺寸:", UIScreen.main.bounds.size)
-                print("safe frameSize:", Device.frameSize)
                 print("设备名称: \(UIDevice.current.name)")
                 print("设备型号: \(UIDevice.current.model)")
                 print("系统版本: \(UIDevice.current.systemVersion)")
@@ -124,9 +107,7 @@ struct Device {
                 print("ARFaceTrackingConfiguration支持:", ARFaceTrackingConfiguration.isSupported ? "支持" : "不支持")
                 print("=======================")
             }
-            #endif
-            
-            // 直接使用系统返回的安全区域值
+            #endif            
             return insets
         }
         return UIEdgeInsets.zero

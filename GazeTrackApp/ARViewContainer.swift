@@ -99,7 +99,6 @@ class CustomARView: ARView, ARSessionDelegate {
         detectEyebrowRaise(faceAnchor: faceAnchor)
     }
     
-    //使用重载的方法使得允许传入自定义向量
     func detectGazePoint(faceAnchor: ARFaceAnchor)->CGPoint {
         let lookAtPoint = faceAnchor.lookAtPoint
         let focusPoint = detectGazePointAfterCalibration(faceAnchor: faceAnchor, overrideLookAtPoint: lookAtPoint)
@@ -125,14 +124,12 @@ class CustomARView: ARView, ARSessionDelegate {
         
         if Device.isCameraOnLeft {
             // 摄像头在左侧（landscapeRight）
-            // 使用frameSize坐标系统（与竖屏保持一致）
             let orientationAwarePhysicalSize = Device.orientationAwareScreenSize
             let frameSize = Device.frameSize
             screenX = lookAtPointInCamera.x / (Float(orientationAwarePhysicalSize.width) / 2) * Float(frameSize.width)
             screenY = -lookAtPointInCamera.y / (Float(orientationAwarePhysicalSize.height) / 2) * Float(frameSize.height)
         } else if Device.isCameraOnRight {
             // 摄像头在右侧（landscapeLeft）
-            // 使用frameSize坐标系统（与竖屏保持一致）
             let orientationAwarePhysicalSize = Device.orientationAwareScreenSize
             let frameSize = Device.frameSize
             screenX = -lookAtPointInCamera.x / (Float(orientationAwarePhysicalSize.width) / 2) * Float(frameSize.width)
@@ -178,11 +175,10 @@ class CustomARView: ARView, ARSessionDelegate {
                 print("  - Y计算: \(lookAtPointInCamera.x) / (\(Device.screenSize.height)/2) * \(Device.frameSize.height) = \(screenY)")
             }
             print("计算后屏幕坐标(未限制):", rawFocusPoint)
-            print("最终坐标(已限制):", focusPoint)
-            print("限制是否生效:", "X: \(rawFocusPoint.x != focusPoint.x ? "是" : "否"), Y: \(rawFocusPoint.y != focusPoint.y ? "是" : "否")")
-            print("屏幕尺寸:", Device.frameSize)
+            print("focusPoint:", focusPoint)
             print("方向感知屏幕尺寸:", Device.orientationAwareScreenSize)
-            print("Safe Area:", "top=\(safeAreaInsets.top), bottom=\(safeAreaInsets.bottom), left=\(safeAreaInsets.left), right=\(safeAreaInsets.right)")
+            print("安全区域的屏幕尺寸:", Device.frameSize)
+            print("安全区域的margin:", "top=\(safeAreaInsets.top), bottom=\(safeAreaInsets.bottom), left=\(safeAreaInsets.left), right=\(safeAreaInsets.right)")
             print("X范围: \(Ranges.widthRange), Y范围: \(Ranges.heightRange)")
             print("摄像头侧边界检查:", Device.isCameraOnLeft ? "左侧边界=\(Ranges.widthRange.lowerBound)" : "右侧边界=\(Ranges.widthRange.upperBound)")
             print("=======================")
@@ -236,8 +232,8 @@ class CustomARView: ARView, ARSessionDelegate {
             .showWorldOrigin,        // 显示世界坐标原点
             .showAnchorOrigins,      // 显示 Anchor 原点
             .showAnchorGeometry,     // 显示 Anchor 检测几何图形
-            .showFeaturePoints,       // 显示点云信息
-            .showSceneUnderstanding // 若 iOS ≥ 13.4 且使用 Scene Reconstruction 可启用
+            .showFeaturePoints,      // 显示点云信息
+            .showSceneUnderstanding  // 若 iOS ≥ 13.4 且使用 Scene Reconstruction 可启用
         ]
     }
     
@@ -260,7 +256,7 @@ class CustomARView: ARView, ARSessionDelegate {
         fatalError("init(coder:) has not been implemented")
     }
     
-    @MainActor @preconcurrency override required dynamic init(frame frameRect: CGRect) {
+    @MainActor @preconcurrency required dynamic init(frame frameRect: CGRect) {
         fatalError("init(frame:) has not been implemented")
     }
 }
