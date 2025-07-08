@@ -94,6 +94,7 @@ enum AppView {
     case calibration
     case measurement
     case gazeTrack
+    case gazeTrackAutoStart // 新增：自动启动的gaze track模式
 }
 
 #if DEBUG

@@ -2,6 +2,8 @@ import SwiftUI
 
 struct MainAppView: View {
     @State private var currentView: AppView = .landing
+    @StateObject private var sharedCalibrationManager = CalibrationManager()
+    @StateObject private var sharedMeasurementManager = MeasurementManager()
     
     var body: some View {
         Group {
@@ -9,11 +11,13 @@ struct MainAppView: View {
             case .landing:
                 LandingPageView(currentView: $currentView)
             case .calibration:
-                CalibrationView(currentView: $currentView)
+                CalibrationView(currentView: $currentView, calibrationManager: sharedCalibrationManager, measurementManager: sharedMeasurementManager)
             case .measurement:
-                MeasurementView(currentView: $currentView)
+                MeasurementView(currentView: $currentView, calibrationManager: sharedCalibrationManager, measurementManager: sharedMeasurementManager)
             case .gazeTrack:
-                GazeTrackView(currentView: $currentView)
+                GazeTrackView(currentView: $currentView, calibrationManager: sharedCalibrationManager, measurementManager: sharedMeasurementManager)
+            case .gazeTrackAutoStart:
+                GazeTrackAutoStartView(currentView: $currentView, calibrationManager: sharedCalibrationManager, measurementManager: sharedMeasurementManager)
             }
         }
         .animation(.easeInOut(duration: 0.3), value: currentView)
@@ -22,25 +26,41 @@ struct MainAppView: View {
 
 struct CalibrationView: View {
     @Binding var currentView: AppView
+    @ObservedObject var calibrationManager: CalibrationManager
+    @ObservedObject var measurementManager: MeasurementManager
     
     var body: some View {
-        ContentView(mode: .calibration, currentView: $currentView)
+        ContentView(mode: .calibration, currentView: $currentView, calibrationManager: calibrationManager, measurementManager: measurementManager)
     }
 }
 
 struct MeasurementView: View {
     @Binding var currentView: AppView
+    @ObservedObject var calibrationManager: CalibrationManager
+    @ObservedObject var measurementManager: MeasurementManager
     
     var body: some View {
-        ContentView(mode: .measurement, currentView: $currentView)
+        ContentView(mode: .measurement, currentView: $currentView, calibrationManager: calibrationManager, measurementManager: measurementManager)
     }
 }
 
 struct GazeTrackView: View {
     @Binding var currentView: AppView
+    @ObservedObject var calibrationManager: CalibrationManager
+    @ObservedObject var measurementManager: MeasurementManager
     
     var body: some View {
-        ContentView(mode: .gazeTrack, currentView: $currentView)
+        ContentView(mode: .gazeTrack, currentView: $currentView, calibrationManager: calibrationManager, measurementManager: measurementManager)
+    }
+}
+
+struct GazeTrackAutoStartView: View {
+    @Binding var currentView: AppView
+    @ObservedObject var calibrationManager: CalibrationManager
+    @ObservedObject var measurementManager: MeasurementManager
+    
+    var body: some View {
+        ContentView(mode: .gazeTrack, currentView: $currentView, calibrationManager: calibrationManager, measurementManager: measurementManager, autoStart: true)
     }
 }
 

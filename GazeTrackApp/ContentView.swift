@@ -6,6 +6,7 @@ import AVKit
 struct ContentView: View {
     let mode: ViewMode
     @Binding var currentView: AppView
+    let autoStart: Bool
     
     // 眼动追踪状态
     @State private var eyeGazeActive: Bool = false
@@ -15,11 +16,19 @@ struct ContentView: View {
     @State private var showCalibrationGreeting = false
 
     // 管理器
-    @StateObject private var calibrationManager = CalibrationManager()
-    @StateObject private var measurementManager = MeasurementManager()
+    @ObservedObject var calibrationManager: CalibrationManager
+    @ObservedObject var measurementManager: MeasurementManager
     @StateObject private var trajectoryManager = TrajectoryManager()
     @StateObject private var videoManager = VideoManager()
     @StateObject private var uiManager = UIManager()
+    
+    init(mode: ViewMode, currentView: Binding<AppView>, calibrationManager: CalibrationManager, measurementManager: MeasurementManager, autoStart: Bool = false) {
+        self.mode = mode
+        self._currentView = currentView
+        self.calibrationManager = calibrationManager
+        self.measurementManager = measurementManager
+        self.autoStart = autoStart
+    }
     
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -154,6 +163,18 @@ struct ContentView: View {
                         .padding()
                         .background(Color.red)
                         .cornerRadius(10)
+                        
+                        // 快捷跳转到Gaze Track按钮 - 只在校准完成后显示
+                        if calibrationManager.calibrationCompleted {
+                            Button("开始眼动追踪") {
+                                currentView = .gazeTrackAutoStart
+                            }
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color.blue)
+                            .cornerRadius(10)
+                        }
                     }
                     
                     // 测量按钮 - 只在测量模式显示
@@ -356,10 +377,10 @@ struct ContentView: View {
                     .transition(.scale)
             }
 
-            // 视线点显示
-            if let lookAtPoint = lookAtPoint, eyeGazeActive {
+            // 视线点显示 - 根据模式显示不同颜色
+            if let lookAtPoint = lookAtPoint, (eyeGazeActive || calibrationManager.isCalibrating) {
                 Circle()
-                    .fill(Color.red)
+                    .fill(calibrationManager.isCalibrating ? Color.yellow : Color.red)
                     .frame(width: isWinking ? 100 : 40, height: isWinking ? 100 : 40)
                     .position(lookAtPoint)
             }
@@ -378,6 +399,19 @@ struct ContentView: View {
             if mode == .calibration || mode == .measurement {
                 videoManager.videoMode = false
                 videoManager.player.pause()
+            }
+            
+            // 如果是自动启动模式，自动开始眼动追踪
+            if autoStart && mode == .gazeTrack {
+                print("🚀 [AUTO START] 自动启动眼动追踪模式")
+                print("🚀 [AUTO START] 校准状态: \(calibrationManager.calibrationCompleted)")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    if let vc = self.getRootViewController() {
+                        self.checkCameraPermissionAndStartGazeTrack(presentingViewController: vc)
+                    } else {
+                        self.handleStartStop()
+                    }
+                }
             }
             
             uiManager.setupButtonHideTimer()
@@ -486,7 +520,7 @@ struct ContentView: View {
 #if DEBUG
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView(mode: .gazeTrack, currentView: .constant(.gazeTrack))
+        ContentView(mode: .gazeTrack, currentView: .constant(.gazeTrack), calibrationManager: CalibrationManager(), measurementManager: MeasurementManager())
     }
 }
 #endif

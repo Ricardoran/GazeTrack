@@ -166,9 +166,11 @@ class CalibrationManager: ObservableObject {
         calibrationCompleted = success
         
         if success {
-            print("校准完成，模型计算成功")
+            print("✅ [CALIBRATION] 校准完成，模型计算成功")
+            print("✅ [CALIBRATION] 校准向量数量: \(correctionalVectors.count)")
+            print("✅ [CALIBRATION] 校准状态设置为: \(calibrationCompleted)")
         } else {
-            print("校准失败：\(calibrationError ?? "未知错误")")
+            print("❌ [CALIBRATION] 校准失败：\(calibrationError ?? "未知错误")")
         }
     }
     
@@ -254,20 +256,21 @@ class CalibrationManager: ObservableObject {
     // 使用校准模型预测屏幕坐标
     func predictScreenPoint(from faceAnchor: ARFaceAnchor) {
         guard let arView = self.arView else {
-            print("ARView 未初始化")
+            print("❌ [PREDICTION] ARView 未初始化")
             return 
         }
         let lookAtPointOnScreen = arView.detectGazePoint(faceAnchor: faceAnchor)
         let correctionalVector = guessCorrectionalVector(for : lookAtPointOnScreen) * 0.6
         let overrideLookAtPoint = faceAnchor.lookAtPoint + correctionalVector
-//        print("已经得到校准向量:")
-//        print(correctionalVector)
-//        print("屏幕观测点")
-//        print(lookScreenPoint)
-//        print("修正后的向量")
-//        print(overrideLookAtPoint)
-//        print("修正后的屏幕观测点")
-//        print(arView.detectGazePointAfterCalibration(faceAnchor: faceAnchor, overrideLookAtPoint: overrideLookAtPoint))
+        
+        #if DEBUG
+        if arc4random_uniform(500) == 0 {
+            print("🎯 [PREDICTION] 原始注视点: \(lookAtPointOnScreen)")
+            print("🎯 [PREDICTION] 校准向量: \(correctionalVector)")
+            print("🎯 [PREDICTION] 修正后向量: \(overrideLookAtPoint)")
+        }
+        #endif
+        
         arView.updateDetectGazePointAfterCalibration(faceAnchor: faceAnchor, overrideLookAtPoint: overrideLookAtPoint)
     }
 
