@@ -32,38 +32,63 @@ struct ContentView: View {
     
     var body: some View {
         ZStack(alignment: .bottom) {
-            // AR 视图容器
-            ARViewContainer(
-                eyeGazeActive: $eyeGazeActive,
-                lookAtPoint: $lookAtPoint,
-                isWinking: $isWinking,
-                calibrationManager: calibrationManager,
-                measurementManager: measurementManager
-            )
-            .onReceive(timerPublisher) { _ in
-                if eyeGazeActive && !trajectoryManager.isCountingDown,
-                   let point = lookAtPoint {
-                    trajectoryManager.addTrajectoryPoint(point: point)
+            // 背景层 - 在8字形测量时使用纯色背景
+            if measurementManager.isTrajectoryMeasuring {
+                Color.black
+                    .edgesIgnoringSafeArea(.all)
+            } else {
+                // AR 视图容器
+                ARViewContainer(
+                    eyeGazeActive: $eyeGazeActive,
+                    lookAtPoint: $lookAtPoint,
+                    isWinking: $isWinking,
+                    calibrationManager: calibrationManager,
+                    measurementManager: measurementManager
+                )
+                .onReceive(timerPublisher) { _ in
+                    if eyeGazeActive && !trajectoryManager.isCountingDown,
+                       let point = lookAtPoint {
+                        trajectoryManager.addTrajectoryPoint(point: point)
+                    }
+                }.onAppear {
                 }
-            }.onAppear {
+                
+                // 视频播放器（视频模式下，但在测量模式下禁用）
+                if videoManager.videoMode && mode != .measurement {
+                    ZStack {
+                        CustomVideoPlayer(player: videoManager.player, showButtons: $uiManager.showButtons)
+                            .opacity(videoManager.videoOpacity)
+                            .onAppear {
+                                videoManager.setupVideoPlayer()
+                            }
+                            .onDisappear {
+                                videoManager.player.pause()
+                            }
+                            // 添加额外的点击手势识别器
+                            .onTapGesture {
+                                uiManager.showButtons = true
+                                uiManager.resetButtonHideTimer()
+                            }
+                    }
+                }
             }
             
-            // 视频播放器（视频模式下，但在测量模式下禁用）
-            if videoManager.videoMode && mode != .measurement {
-                ZStack {
-                    CustomVideoPlayer(player: videoManager.player, showButtons: $uiManager.showButtons)
-                        .opacity(videoManager.videoOpacity)
-                        .onAppear {
-                            videoManager.setupVideoPlayer()
-                        }
-                        .onDisappear {
-                            videoManager.player.pause()
-                        }
-                        // 添加额外的点击手势识别器
-                        .onTapGesture {
-                            uiManager.showButtons = true
-                            uiManager.resetButtonHideTimer()
-                        }
+            // 在8字形测量时，仍需要ARView来获取注视点数据，但设为透明
+            if measurementManager.isTrajectoryMeasuring {
+                ARViewContainer(
+                    eyeGazeActive: $eyeGazeActive,
+                    lookAtPoint: $lookAtPoint,
+                    isWinking: $isWinking,
+                    calibrationManager: calibrationManager,
+                    measurementManager: measurementManager
+                )
+                .opacity(0)  // 完全透明，只用于数据收集
+                .edgesIgnoringSafeArea(.all)
+                .onReceive(timerPublisher) { _ in
+                    if eyeGazeActive && !trajectoryManager.isCountingDown,
+                       let point = lookAtPoint {
+                        trajectoryManager.addTrajectoryPoint(point: point)
+                    }
                 }
             }
             // 校准说明视图
@@ -106,13 +131,43 @@ struct ContentView: View {
                 }
             }
             
-            // 注视点视图（在测量模式下或在校准模式下， 显示这些已知位置的注视点，绿色，半透明）
-            if measurementManager.isMeasuring, let lookAtPoint = lookAtPoint {
+            // 8字形轨迹点视图（在8字形测量模式下显示动态轨迹点，亮紫色）
+            if measurementManager.isTrajectoryMeasuring && measurementManager.showTrajectoryPoint {
                 Circle()
-                    .fill(Color.green)
-                    .frame(width: 40, height: 40)
+                    .fill(Color.purple)
+                    .frame(width: 35, height: 35)  // 增大轨迹点
+                    .position(measurementManager.currentTrajectoryPoint)
+                    .shadow(color: .purple, radius: 10)  // 添加发光效果
+                    .transition(.scale.combined(with: .opacity))
+                    .animation(.easeInOut(duration: 0.1), value: measurementManager.trajectoryProgress)
+                
+                // 添加外圈增强可见性
+                Circle()
+                    .stroke(Color.white, lineWidth: 3)
+                    .frame(width: 35, height: 35)
+                    .position(measurementManager.currentTrajectoryPoint)
+                    .transition(.scale.combined(with: .opacity))
+                    .animation(.easeInOut(duration: 0.1), value: measurementManager.trajectoryProgress)
+                
+            }
+            
+            // 注视点视图（在测量模式下或8字形测量模式下，显示实际注视点，绿色，半透明）
+            if (measurementManager.isMeasuring || measurementManager.isTrajectoryMeasuring), let lookAtPoint = lookAtPoint {
+                Circle()
+                    .fill(measurementManager.isTrajectoryMeasuring ? Color.green : Color.green)
+                    .frame(width: measurementManager.isTrajectoryMeasuring ? 30 : 40, height: measurementManager.isTrajectoryMeasuring ? 30 : 40)
                     .position(lookAtPoint)
-                    .opacity(0.7)
+                    .opacity(measurementManager.isTrajectoryMeasuring ? 0.9 : 0.7)  // 8字形测量时更不透明
+                    .shadow(color: .green, radius: measurementManager.isTrajectoryMeasuring ? 8 : 0)  // 8字形测量时添加发光效果
+                
+                // 在8字形测量时添加白色外圈
+                if measurementManager.isTrajectoryMeasuring {
+                    Circle()
+                        .stroke(Color.white, lineWidth: 2)
+                        .frame(width: 30, height: 30)
+                        .position(lookAtPoint)
+                        .opacity(0.8)
+                }
             }
 
             // Back button
@@ -122,6 +177,7 @@ struct ContentView: View {
                         // Stop any ongoing calibration or measurement process
                         calibrationManager.stopCalibration()
                         measurementManager.stopMeasurement()
+                        measurementManager.stopTrajectoryMeasurement()  // 停止8字形测量
                         eyeGazeActive = false
                         currentView = .landing
                     }) {
@@ -187,6 +243,22 @@ struct ContentView: View {
                         .padding()
                         .background(Color.orange)
                         .cornerRadius(10)
+                        
+                        // 8字形测量按钮
+                        Button("8字测量") {
+                            // 启动8字形测量前先确保眼动追踪处于活跃状态
+                            if !eyeGazeActive {
+                                eyeGazeActive = true
+                                print("自动启动眼动追踪以支持8字形测量")
+                            }
+                            measurementManager.startTrajectoryMeasurement()
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.purple)
+                        .cornerRadius(10)
+                        .disabled(measurementManager.isMeasuring) // 静态测量时禁用
                     }
                     
                     // 视频模式切换按钮 - 只在眼动追踪模式显示
@@ -365,6 +437,112 @@ struct ContentView: View {
                 }
                 .zIndex(200) // 确保显示在最上层
             }
+            
+            // 8字形测量进度指示器
+            if measurementManager.isTrajectoryMeasuring {
+                VStack {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 10) {
+                            Text("8字形轨迹测量")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .fontWeight(.bold)
+                            
+                            Text("进度: \(Int(measurementManager.trajectoryProgress * 100))%")
+                                .font(.subheadline)
+                                .foregroundColor(.white)
+                            
+                            ProgressView(value: measurementManager.trajectoryProgress, total: 1.0)
+                                .progressViewStyle(LinearProgressViewStyle(tint: .purple))
+                                .frame(width: 200)
+                                .background(Color.white.opacity(0.3))
+                                .cornerRadius(5)
+                            
+                            Text("请跟随紫色轨迹点移动眼球")
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+                        .padding()
+                        .background(Color.black.opacity(0.7))
+                        .cornerRadius(15)
+                        .padding(.trailing, 20)
+                    }
+                    Spacer()
+                }
+                .zIndex(150)
+            }
+            
+            // 8字形轨迹测量结果视图
+            if measurementManager.showTrajectoryResults, let results = measurementManager.trajectoryResults {
+                ZStack {
+                    Color.black.opacity(0.8)
+                        .edgesIgnoringSafeArea(.all)
+                    
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            Text("8字形轨迹测量结果")
+                                .font(.title)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                            
+                            // 统计信息
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("📊 统计数据")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                    .fontWeight(.bold)
+                                
+                                Text("平均误差: \(String(format: "%.1f", results.averageError)) pt")
+                                    .foregroundColor(.white)
+                                Text("最大误差: \(String(format: "%.1f", results.maxError)) pt")
+                                    .foregroundColor(.white)
+                                Text("最小误差: \(String(format: "%.1f", results.minError)) pt")
+                                    .foregroundColor(.white)
+                                Text("测量时长: \(String(format: "%.1f", results.totalDuration)) 秒")
+                                    .foregroundColor(.white)
+                                Text("屏幕覆盖率: \(String(format: "%.1f", results.coveragePercentage * 100))%")
+                                    .foregroundColor(.white)
+                                Text("数据点数量: \(results.trajectoryPoints.count) 个")
+                                    .foregroundColor(.white)
+                            }
+                            .padding()
+                            .background(Color.gray.opacity(0.3))
+                            .cornerRadius(10)
+                            
+                            // 误差分布
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("📈 误差分析")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                    .fontWeight(.bold)
+                                
+                                let errorRanges = analyzeErrorDistribution(results.trajectoryPoints)
+                                ForEach(errorRanges, id: \.range) { errorRange in
+                                    Text("\(errorRange.range): \(errorRange.count) 个点 (\(String(format: "%.1f", errorRange.percentage))%)")
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            .padding()
+                            .background(Color.gray.opacity(0.3))
+                            .cornerRadius(10)
+                            
+                            Button("关闭") {
+                                measurementManager.showTrajectoryResults = false
+                            }
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color.purple)
+                            .cornerRadius(10)
+                        }
+                        .padding(30)
+                    }
+                    .background(Color.gray.opacity(0.5))
+                    .cornerRadius(20)
+                }
+                .zIndex(200) // 确保显示在最上层
+            }
 
             // 倒计时显示
             if trajectoryManager.showCountdown {
@@ -380,7 +558,8 @@ struct ContentView: View {
             // 视线点显示 - 根据模式显示不同颜色
             if let lookAtPoint = lookAtPoint, (eyeGazeActive || calibrationManager.isCalibrating) {
                 Circle()
-                    .fill(calibrationManager.isCalibrating ? Color.yellow : Color.red)
+                    .fill(calibrationManager.isCalibrating ? Color.yellow : 
+                          (mode == .measurement ? Color.green : Color.red))
                     .frame(width: isWinking ? 100 : 40, height: isWinking ? 100 : 40)
                     .position(lookAtPoint)
             }
@@ -420,6 +599,7 @@ struct ContentView: View {
             // 清理资源
             calibrationManager.stopCalibration()
             measurementManager.stopMeasurement()
+            measurementManager.stopTrajectoryMeasurement()  // 停止8字形测量
             eyeGazeActive = false
             uiManager.cleanup()
             videoManager.cleanup()
@@ -473,6 +653,26 @@ struct ContentView: View {
         print("导出包含 \(trajectoryManager.gazeTrajectory.count) 个数据点的轨迹...")
         trajectoryManager.exportTrajectory {
             trajectoryManager.showExportAlert = true
+        }
+    }
+    
+    // 分析误差分布
+    func analyzeErrorDistribution(_ points: [TrajectoryMeasurementPoint]) -> [(range: String, count: Int, percentage: Float)] {
+        let totalPoints = points.count
+        guard totalPoints > 0 else { return [] }
+        
+        let ranges = [
+            ("0-20pt", 0.0...20.0),
+            ("20-40pt", 20.0...40.0),
+            ("40-60pt", 40.0...60.0),
+            ("60-80pt", 60.0...80.0),
+            (">80pt", 80.0...Double.infinity)
+        ]
+        
+        return ranges.map { (rangeName, range) in
+            let count = points.filter { range.contains(Double($0.error)) }.count
+            let percentage = Float(count) / Float(totalPoints) * 100
+            return (range: rangeName, count: count, percentage: percentage)
         }
     }
     

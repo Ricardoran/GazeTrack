@@ -80,6 +80,13 @@ class CustomARView: ARView, ARSessionDelegate {
             }
         }
         
+        // 如果在8字形轨迹测量模式下，收集轨迹测量数据
+        if measurementManager.isTrajectoryMeasuring {
+            if let point = lookAtPoint {
+                measurementManager.collectTrajectoryMeasurementPoint(point)
+            }
+        }
+        
         // 如果在追踪模式下，且校准完成，使用校准后的模型
         if eyeGazeActive {
             if calibrationManager.calibrationCompleted{

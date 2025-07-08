@@ -8,6 +8,24 @@ struct MeasurementPoint {
     let error: CGFloat  // 误差距离（pt）
 }
 
+// 8字形轨迹测量数据结构
+struct TrajectoryMeasurementPoint {
+    let targetPosition: CGPoint
+    let actualPosition: CGPoint
+    let timestamp: TimeInterval
+    let error: CGFloat
+}
+
+// 8字形轨迹测量结果
+struct TrajectoryMeasurementResult {
+    let trajectoryPoints: [TrajectoryMeasurementPoint]
+    let averageError: CGFloat
+    let maxError: CGFloat
+    let minError: CGFloat
+    let totalDuration: TimeInterval
+    let coveragePercentage: Float  // 屏幕覆盖率
+}
+
 class MeasurementManager: ObservableObject {
     @Published var isMeasuring: Bool = false
     @Published var currentPointIndex: Int = 0
@@ -17,8 +35,23 @@ class MeasurementManager: ObservableObject {
     @Published var showMeasurementResults: Bool = false
     @Published var showCalibrationPoint: Bool = false
     
+    // 8字形轨迹测量相关属性
+    @Published var isTrajectoryMeasuring: Bool = false
+    @Published var trajectoryMeasurementCompleted: Bool = false
+    @Published var trajectoryResults: TrajectoryMeasurementResult?
+    @Published var showTrajectoryResults: Bool = false
+    @Published var currentTrajectoryPoint: CGPoint = .zero
+    @Published var showTrajectoryPoint: Bool = false
+    
     private var measurementStartTime: Date?
     private var currentMeasurementPoints: [CGPoint] = []
+    
+    // 8字形轨迹测量相关私有属性
+    private var trajectoryStartTime: Date?
+    private var trajectoryMeasurementPoints: [TrajectoryMeasurementPoint] = []
+    private var trajectoryTimer: Timer?
+    @Published var trajectoryProgress: Float = 0.0
+    private let trajectoryDuration: TimeInterval = 30.0  // 8字形轨迹总时长30秒，在保证连续性的前提下提高速度
     
     // 测量点位置（与校准相同的5个点）
     private let measurementPositions: [(x: CGFloat, y: CGFloat)] = [
@@ -150,5 +183,207 @@ class MeasurementManager: ObservableObject {
         currentMeasurementPoints.removeAll()
         measurementResults.removeAll()
         measurementStartTime = nil
+    }
+    
+    // MARK: - 8字形轨迹测量功能
+    
+    // 生成8字形路径上的点
+    private func generate8ShapePath(at progress: Float) -> CGPoint {
+        let frameSize = Device.frameSize
+        let centerX = frameSize.width / 2
+        let centerY = frameSize.height / 2
+        
+        // 计算边距
+        let marginX: CGFloat = 30.0
+        let marginY: CGFloat = 30.0
+        
+        // 计算圆的半径 - 最大化利用屏幕空间
+        let availableWidth = frameSize.width - marginX * 2
+        
+        // 水平方向约束：圆不能超出左右边界
+        let maxRadiusFromWidth = availableWidth / 2
+        
+        // 垂直方向约束：两个圆需要能完全显示在屏幕内
+        // 上圆最高点：centerY - 2*radius，需要 >= marginY
+        // 下圆最低点：centerY + 2*radius，需要 <= frameSize.height - marginY
+        // 所以：centerY - 2*radius >= marginY 且 centerY + 2*radius <= frameSize.height - marginY
+        // 即：2*radius <= min(centerY - marginY, frameSize.height - marginY - centerY)
+        let maxRadiusFromHeight = min(centerY - marginY, frameSize.height - marginY - centerY) / 2
+        
+        let circleRadius = min(maxRadiusFromWidth, maxRadiusFromHeight)
+        
+        // 上下圆心位置
+        let upperCenterY = centerY - circleRadius
+        let lowerCenterY = centerY + circleRadius
+        
+        let x: CGFloat
+        let y: CGFloat
+        
+        if progress <= 0.5 {
+            // 前半部分：从屏幕中心开始，顺时针画上面的圆，回到中心
+            let circleProgress = progress * 2  // 0.0 到 1.0
+            let angle = circleProgress * 2 * Float.pi  // 0 到 2π
+            
+            // 屏幕中心在上圆的底部，对应角度 π/2
+            // 顺时针：从 π/2 开始，角度增加
+            let adjustedAngle = Float.pi / 2 + angle
+            x = centerX + circleRadius * CGFloat(cos(adjustedAngle))
+            y = upperCenterY + circleRadius * CGFloat(sin(adjustedAngle))
+        } else {
+            // 后半部分：从屏幕中心开始，逆时针画下面的圆，回到中心
+            let circleProgress = (progress - 0.5) * 2  // 0.0 到 1.0
+            let angle = circleProgress * 2 * Float.pi  // 0 到 2π
+            
+            // 屏幕中心在下圆的顶部，对应角度 3π/2
+            // 逆时针：从 3π/2 开始，角度减少
+            let adjustedAngle = 3 * Float.pi / 2 - angle
+            x = centerX + circleRadius * CGFloat(cos(adjustedAngle))
+            y = lowerCenterY + circleRadius * CGFloat(sin(adjustedAngle))
+        }
+        
+        // 确保坐标在屏幕范围内
+        let clampedX = max(marginX, min(frameSize.width - marginX, x))
+        let clampedY = max(marginY, min(frameSize.height - marginY, y))
+        
+        return CGPoint(x: clampedX, y: clampedY)
+    }
+    
+    // 开始8字形轨迹测量
+    func startTrajectoryMeasurement() {
+        // 停止任何正在进行的静态测量
+        if isMeasuring {
+            stopMeasurement()
+        }
+        
+        isTrajectoryMeasuring = true
+        trajectoryMeasurementCompleted = false
+        showTrajectoryResults = false
+        trajectoryMeasurementPoints.removeAll()
+        trajectoryProgress = 0.0
+        trajectoryStartTime = Date()
+        showTrajectoryPoint = true
+        
+        print("开始8字形轨迹测量，总时长: \(trajectoryDuration)秒")
+        print("8字形测量已启动，请确保眼动追踪处于活跃状态")
+        print("轨迹将从屏幕中心开始，顺时针完成上圆，再逆时针完成下圆，保证完全连续性")
+        print("轨迹将充分覆盖屏幕边缘区域，提供更准确的gaze tracking测量")
+        
+        // 启动定时器，每16ms更新一次（约60fps）
+        trajectoryTimer = Timer.scheduledTimer(withTimeInterval: 1.0/60.0, repeats: true) { [weak self] timer in
+            self?.updateTrajectoryMeasurement()
+        }
+    }
+    
+    // 更新8字形轨迹测量
+    private func updateTrajectoryMeasurement() {
+        guard let startTime = trajectoryStartTime else { return }
+        
+        let elapsedTime = Date().timeIntervalSince(startTime)
+        trajectoryProgress = Float(elapsedTime / trajectoryDuration)
+        
+        if trajectoryProgress >= 1.0 {
+            // 测量完成
+            finishTrajectoryMeasurement()
+            return
+        }
+        
+        // 更新当前目标点
+        currentTrajectoryPoint = generate8ShapePath(at: trajectoryProgress)
+    }
+    
+    // 收集8字形轨迹测量数据
+    func collectTrajectoryMeasurementPoint(_ actualPoint: CGPoint) {
+        guard isTrajectoryMeasuring,
+              let startTime = trajectoryStartTime else { return }
+        
+        let currentTime = Date().timeIntervalSince(startTime)
+        let targetPoint = currentTrajectoryPoint
+        
+        // 计算误差
+        let error = sqrt(pow(actualPoint.x - targetPoint.x, 2) + pow(actualPoint.y - targetPoint.y, 2))
+        
+        // 创建轨迹测量点
+        let trajectoryPoint = TrajectoryMeasurementPoint(
+            targetPosition: targetPoint,
+            actualPosition: actualPoint,
+            timestamp: currentTime,
+            error: error
+        )
+        
+        trajectoryMeasurementPoints.append(trajectoryPoint)
+        
+        #if DEBUG
+        if trajectoryMeasurementPoints.count % 60 == 0 {  // 每秒打印一次
+            print("8字形测量进度: \(Int(trajectoryProgress * 100))%, 当前误差: \(String(format: "%.1f", error))pt, 已采集: \(trajectoryMeasurementPoints.count)点")
+        }
+        #endif
+    }
+    
+    // 完成8字形轨迹测量
+    private func finishTrajectoryMeasurement() {
+        trajectoryTimer?.invalidate()
+        trajectoryTimer = nil
+        
+        isTrajectoryMeasuring = false
+        trajectoryMeasurementCompleted = true
+        showTrajectoryPoint = false
+        
+        // 计算统计结果
+        if !trajectoryMeasurementPoints.isEmpty {
+            let errors = trajectoryMeasurementPoints.map { $0.error }
+            let avgError = errors.reduce(0, +) / CGFloat(errors.count)
+            let maxError = errors.max() ?? 0
+            let minError = errors.min() ?? 0
+            let duration = trajectoryMeasurementPoints.last?.timestamp ?? 0
+            
+            // 计算屏幕覆盖率（简化版本）
+            let frameSize = Device.frameSize
+            let gridSize = 20
+            var coveredCells: Set<String> = []
+            
+            for point in trajectoryMeasurementPoints {
+                let gridX = Int(point.actualPosition.x / frameSize.width * CGFloat(gridSize))
+                let gridY = Int(point.actualPosition.y / frameSize.height * CGFloat(gridSize))
+                coveredCells.insert("\(gridX),\(gridY)")
+            }
+            
+            let coveragePercentage = Float(coveredCells.count) / Float(gridSize * gridSize)
+            
+            trajectoryResults = TrajectoryMeasurementResult(
+                trajectoryPoints: trajectoryMeasurementPoints,
+                averageError: avgError,
+                maxError: maxError,
+                minError: minError,
+                totalDuration: duration,
+                coveragePercentage: coveragePercentage
+            )
+            
+            print("8字形轨迹测量完成！")
+            print("- 平均误差: \(String(format: "%.1f", avgError))pt")
+            print("- 最大误差: \(String(format: "%.1f", maxError))pt")
+            print("- 最小误差: \(String(format: "%.1f", minError))pt")
+            print("- 测量时长: \(String(format: "%.1f", duration))秒")
+            print("- 屏幕覆盖率: \(String(format: "%.1f", coveragePercentage * 100))%")
+            print("- 采集数据点: \(trajectoryMeasurementPoints.count)个")
+            
+            showTrajectoryResults = true
+        } else {
+            print("8字形轨迹测量失败：没有收集到数据")
+        }
+    }
+    
+    // 停止8字形轨迹测量
+    func stopTrajectoryMeasurement() {
+        trajectoryTimer?.invalidate()
+        trajectoryTimer = nil
+        
+        isTrajectoryMeasuring = false
+        trajectoryMeasurementCompleted = false
+        showTrajectoryPoint = false
+        showTrajectoryResults = false
+        trajectoryMeasurementPoints.removeAll()
+        trajectoryResults = nil
+        trajectoryStartTime = nil
+        trajectoryProgress = 0.0
     }
 }
