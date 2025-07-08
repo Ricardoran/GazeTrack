@@ -7,6 +7,7 @@
 import SwiftUI
 import UIKit
 import AVFoundation
+import ARKit
 
 struct Device {
     // MARK: - Device Orientation Detection
@@ -48,9 +49,21 @@ struct Device {
         return currentOrientation == .landscapeLeft
     }
     
-    // MARK: - Screen Size Calculations
+    // MARK: - TrueDepth Camera Support Detection
+    static var supportsTrueDepthCamera: Bool {
+        let discoverySession = AVCaptureDevice.DiscoverySession(
+            deviceTypes: [.builtInTrueDepthCamera],
+            mediaType: .video,
+            position: .front
+        )
+        return !discoverySession.devices.isEmpty
+    }
+    
+    
+    // Screen Size Calculations
     static var screenSize: CGSize {
         
+        // 这里的screen size是定死的，不会受屏幕旋转而改变
         let screenWidthPixel: CGFloat = UIScreen.main.nativeBounds.width
         let screenHeightPixel: CGFloat = UIScreen.main.nativeBounds.height
         
@@ -82,30 +95,10 @@ struct Device {
     // 方向感知的物理屏幕尺寸（物理尺寸，根据方向调整）
     static var orientationAwareScreenSize: CGSize {
         let baseSize = screenSize
-        return isLandscape ? 
+        return isLandscape ?
             CGSize(width: baseSize.height, height: baseSize.width) : 
             baseSize
     }
-    
-    // 添加打印屏幕尺寸的函数
-    // static func printScreenSize() {
-    //     let safeAreaInsets = getSafeAreaInsets()
-    //     let orientation = currentOrientation
-        
-    //     print("=== 设备尺寸和方向信息 ===")
-    //     print("设备尺寸", Device.screenSize)
-    //     print("方向感知设备尺寸", Device.orientationAwareScreenSize)
-    //     print("当前方向:", orientation.rawValue, Device.isCameraOnLeft ? "(摄像头在左)" : Device.isCameraOnRight ? "(摄像头在右)" : Device.isPortrait ? "(竖屏)" : "(未知)")
-    //     print("屏幕分辨率:",UIScreen.main.nativeBounds.width, UIScreen.main.nativeBounds.height)
-    //     print("屏幕尺寸: 宽度 = \(UIScreen.main.bounds.size.width), 高度 = \(UIScreen.main.bounds.size.height)")
-        
-    //     print("=== Safe Area详细信息 ===")
-    //     print("Safe Area Insets - top:\(safeAreaInsets.top), bottom:\(safeAreaInsets.bottom), left:\(safeAreaInsets.left), right:\(safeAreaInsets.right)")
-    //     print("宽度范围: \(Ranges.widthRange)", "高度范围: \(Ranges.heightRange)")
-    //     print("Safe Frame尺寸: \(frameSize)")
-    //     print("UIScreen.main.scale", UIScreen.main.scale)
-    //     print("===============================")
-    // }
     
     // 方向感知的屏幕尺寸（去除安全区域）
     static var frameSize: CGSize {
@@ -127,7 +120,12 @@ struct Device {
                 print("设备方向:", isLandscape ? "横屏" : "竖屏")
                 print("系统原始Safe Area:", "top=\(insets.top), bottom=\(insets.bottom), left=\(insets.left), right=\(insets.right)")
                 print("屏幕尺寸:", UIScreen.main.bounds.size)
-                print("frameSize:", Device.frameSize)
+                print("safe frameSize:", Device.frameSize)
+                print("设备名称: \(UIDevice.current.name)")
+                print("设备型号: \(UIDevice.current.model)")
+                print("系统版本: \(UIDevice.current.systemVersion)")
+                print("TrueDepth摄像头支持:", Device.supportsTrueDepthCamera ? "支持" : "不支持")
+                print("ARFaceTrackingConfiguration支持:", ARFaceTrackingConfiguration.isSupported ? "支持" : "不支持")
                 print("=======================")
             }
             #endif
