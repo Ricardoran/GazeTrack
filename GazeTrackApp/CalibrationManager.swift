@@ -53,9 +53,9 @@ class CalibrationManager: ObservableObject {
     var currentCalibrationPoint: CGPoint? {
         guard currentPointIndex < calibrationPositions.count else { return nil }
         let position = calibrationPositions[currentPointIndex]
-        let safeFrameSize = Device.safeFrameSize
-        return CGPoint(x: position.x * safeFrameSize.width,
-                       y: position.y * safeFrameSize.height)
+        let frameSize = Device.frameSize
+        return CGPoint(x: position.x * frameSize.width,
+                       y: position.y * frameSize.height)
     }
     
     // 开始校准过程
@@ -320,11 +320,11 @@ class CalibrationManager: ObservableObject {
     // 高斯距离加权平均-》计算校准向量
 
     func computeCalibrationPoints(from positions: [(x: CGFloat, y: CGFloat)]) -> [CGPoint] {
-        let safeFrameSize = Device.safeFrameSize
+        let frameSize = Device.frameSize
         return positions.map { position in
             CGPoint(
-                x: position.x * safeFrameSize.width,
-                y: position.y * safeFrameSize.height
+                x: position.x * frameSize.width,
+                y: position.y * frameSize.height
             )
         }
     }

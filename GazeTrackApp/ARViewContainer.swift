@@ -157,10 +157,8 @@ class CustomARView: ARView, ARSessionDelegate {
             y: CGFloat(screenY).clamped(to: Ranges.heightRange)
         )
         
-        // 调试日志（仅在开发时打开）
         #if DEBUG
-        // 每180帧打印一次，避免日志过多
-        if arc4random_uniform(180) == 0 {
+        if arc4random_uniform(300) == 0 {
             let safeAreaInsets = Device.getSafeAreaInsets()
             let rawFocusPoint = CGPoint(x: CGFloat(screenX), y: CGFloat(screenY))
             
@@ -232,11 +230,11 @@ class CustomARView: ARView, ARSessionDelegate {
         isWinking = browInnerUp > eyebrowRaiseThreshold
     }
     
-    @MainActor required dynamic init?(coder decoder: NSCoder) {
+    @MainActor @preconcurrency required dynamic init?(coder decoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
     
-    @MainActor required dynamic init(frame frameRect: CGRect) {
+    @MainActor @preconcurrency override required dynamic init(frame frameRect: CGRect) {
         fatalError("init(frame:) has not been implemented")
     }
 }

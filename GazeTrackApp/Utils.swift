@@ -102,7 +102,7 @@ struct Device {
     //     print("=== Safe Area详细信息 ===")
     //     print("Safe Area Insets - top:\(safeAreaInsets.top), bottom:\(safeAreaInsets.bottom), left:\(safeAreaInsets.left), right:\(safeAreaInsets.right)")
     //     print("宽度范围: \(Ranges.widthRange)", "高度范围: \(Ranges.heightRange)")
-    //     print("Safe Frame尺寸: \(safeFrameSize)")
+    //     print("Safe Frame尺寸: \(frameSize)")
     //     print("UIScreen.main.scale", UIScreen.main.scale)
     //     print("===============================")
     // }
@@ -122,7 +122,7 @@ struct Device {
             let insets = window.safeAreaInsets
             
             #if DEBUG
-            if arc4random_uniform(60) == 0 {
+            if arc4random_uniform(300) == 0 {
                 print("=== Safe Area 调试信息 ===")
                 print("设备方向:", isLandscape ? "横屏" : "竖屏")
                 print("系统原始Safe Area:", "top=\(insets.top), bottom=\(insets.bottom), left=\(insets.left), right=\(insets.right)")
@@ -138,44 +138,18 @@ struct Device {
         return UIEdgeInsets.zero
     }
     
-    // 获取考虑安全区域的屏幕尺寸
-    static var safeFrameSize: CGSize {
-        let safeAreaInsets = getSafeAreaInsets()
-        return CGSize(
-            width: UIScreen.main.bounds.size.width - safeAreaInsets.left - safeAreaInsets.right,
-            height: UIScreen.main.bounds.size.height - safeAreaInsets.top - safeAreaInsets.bottom
-        )
-    }
+
 }
 
 struct Ranges {
     // 方向感知的宽度范围
     static var widthRange: ClosedRange<CGFloat> {
-        let safeAreaInsets = Device.getSafeAreaInsets()
-        let bounds = UIScreen.main.bounds
-        
-        // 在横屏模式下，需要特别处理摄像头侧的安全区域
-        if Device.isLandscape {
-            // 横屏模式：使用frameSize坐标系（与竖屏保持一致）
             return 0.0...Device.frameSize.width
-        } else {
-            // 竖屏模式：left和right通常为0，使用屏幕坐标
-            return safeAreaInsets.left...(bounds.width - safeAreaInsets.right)
-        }
     }
     
     // 方向感知的高度范围
     static var heightRange: ClosedRange<CGFloat> {
-        let safeAreaInsets = Device.getSafeAreaInsets()
-        let bounds = UIScreen.main.bounds
-        
-        if Device.isLandscape {
-            // 横屏模式：使用frameSize坐标系（与竖屏保持一致）
             return 0.0...Device.frameSize.height
-        } else {
-            // 竖屏模式：使用原有逻辑（frameSize坐标系）
-            return 0.0...Device.frameSize.height
-        }
     }
 }
 
