@@ -41,9 +41,10 @@ class VideoManager: ObservableObject {
     // 清理资源
     func cleanup() {
         player.pause()
+        player.replaceCurrentItem(with: nil) // 释放当前播放项
         NotificationCenter.default.removeObserver(self, 
                                                  name: .AVPlayerItemDidPlayToEndTime, 
-                                                 object: player.currentItem)
+                                                 object: nil) // 移除所有相关观察者
     }
 }
 

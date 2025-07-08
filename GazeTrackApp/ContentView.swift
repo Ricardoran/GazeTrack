@@ -39,8 +39,8 @@ struct ContentView: View {
             }.onAppear {
             }
             
-            // 视频播放器（视频模式下）
-            if videoManager.videoMode {
+            // 视频播放器（视频模式下，但在测量模式下禁用）
+            if videoManager.videoMode && mode != .measurement {
                 ZStack {
                     CustomVideoPlayer(player: videoManager.player, showButtons: $uiManager.showButtons)
                         .opacity(videoManager.videoOpacity)
@@ -373,6 +373,13 @@ struct ContentView: View {
         .onAppear {
             // 初始化
             videoManager.setupVideoPlayer()
+            
+            // 在校准和测量模式下停止视频以减少系统警告
+            if mode == .calibration || mode == .measurement {
+                videoManager.videoMode = false
+                videoManager.player.pause()
+            }
+            
             uiManager.setupButtonHideTimer()
         }
         .onDisappear {
