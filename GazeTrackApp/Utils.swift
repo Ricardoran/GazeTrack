@@ -90,6 +90,30 @@ struct Device {
                       height: bounds.height - safeAreaInsets.top - safeAreaInsets.bottom)
     }
     
+    // 将屏幕上的点距离转换为厘米
+    static func pointsToCentimeters(_ points: CGFloat) -> Double {
+        let screenWidthPixel = UIScreen.main.nativeBounds.width
+        let screenHeightPixel = UIScreen.main.nativeBounds.height
+        
+        // iPhone 配置（如 iPhone 14 Pro）
+        let ppi: Double = 460.0
+        let screenWidthInMeter: Double = 0.0651318
+        let screenHeightInMeter: Double = 0.1412057
+        
+        // 计算比例因子
+        let a_ratio = (screenWidthPixel / ppi) / screenWidthInMeter
+        let b_ratio = (screenHeightPixel / ppi) / screenHeightInMeter
+        
+        // 使用平均比例因子进行转换
+        let avgRatio = (a_ratio + b_ratio) / 2
+        
+        // 将点转换为英寸，再转换为厘米
+        let inches = Double(points) / ppi
+        let centimeters = inches * 2.54 / avgRatio
+        
+        return centimeters
+    }
+    
     // 获取安全区域的尺寸
     static func getSafeAreaInsets() -> UIEdgeInsets {
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,

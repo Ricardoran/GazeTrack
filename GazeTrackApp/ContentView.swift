@@ -32,8 +32,8 @@ struct ContentView: View {
     
     var body: some View {
         ZStack(alignment: .bottom) {
-            // 背景层 - 在8字形测量时使用纯色背景
-            if measurementManager.isTrajectoryMeasuring {
+            // 背景层 - 在8字形测量准备或进行时使用纯色背景
+            if measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown {
                 Color.black
                     .edgesIgnoringSafeArea(.all)
             } else {
@@ -74,7 +74,7 @@ struct ContentView: View {
             }
             
             // 在8字形测量时，仍需要ARView来获取注视点数据，但设为透明
-            if measurementManager.isTrajectoryMeasuring {
+            if measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown {
                 ARViewContainer(
                     eyeGazeActive: $eyeGazeActive,
                     lookAtPoint: $lookAtPoint,
@@ -152,16 +152,17 @@ struct ContentView: View {
             }
             
             // 注视点视图（在测量模式下或8字形测量模式下，显示实际注视点，绿色，半透明）
-            if (measurementManager.isMeasuring || measurementManager.isTrajectoryMeasuring), let lookAtPoint = lookAtPoint {
+            if (measurementManager.isMeasuring || measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown), let lookAtPoint = lookAtPoint {
                 Circle()
-                    .fill(measurementManager.isTrajectoryMeasuring ? Color.green : Color.green)
-                    .frame(width: measurementManager.isTrajectoryMeasuring ? 30 : 40, height: measurementManager.isTrajectoryMeasuring ? 30 : 40)
+                    .fill(Color.green)  // 在测量模式下统一使用绿色
+                    .frame(width: (measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown) ? 30 : 40, 
+                           height: (measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown) ? 30 : 40)
                     .position(lookAtPoint)
-                    .opacity(measurementManager.isTrajectoryMeasuring ? 0.9 : 0.7)  // 8字形测量时更不透明
-                    .shadow(color: .green, radius: measurementManager.isTrajectoryMeasuring ? 8 : 0)  // 8字形测量时添加发光效果
+                    .opacity((measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown) ? 0.9 : 0.7)  // 8字形测量时更不透明
+                    .shadow(color: .green, radius: (measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown) ? 8 : 0)  // 8字形测量时添加发光效果
                 
                 // 在8字形测量时添加白色外圈
-                if measurementManager.isTrajectoryMeasuring {
+                if measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown {
                     Circle()
                         .stroke(Color.white, lineWidth: 2)
                         .frame(width: 30, height: 30)
@@ -438,8 +439,8 @@ struct ContentView: View {
                 .zIndex(200) // 确保显示在最上层
             }
             
-            // 8字形测量进度指示器
-            if measurementManager.isTrajectoryMeasuring {
+            // 8字形测量进度指示器 - 只在真正测量时显示，倒计时期间不显示
+            if measurementManager.isTrajectoryMeasuring && !measurementManager.isTrajectoryCountingDown {
                 VStack {
                     HStack {
                         Spacer()
@@ -464,7 +465,7 @@ struct ContentView: View {
                                 .foregroundColor(.white.opacity(0.8))
                         }
                         .padding()
-                        .background(Color.black.opacity(0.7))
+                        .background(Color.black.opacity(0.3))  // 降低透明度从0.7到0.3
                         .cornerRadius(15)
                         .padding(.trailing, 20)
                     }
@@ -486,9 +487,29 @@ struct ContentView: View {
                                 .fontWeight(.bold)
                                 .foregroundColor(.white)
                             
+                            // ME(Mean Euclidean)显示 - 突出显示
+                            VStack(spacing: 8) {
+                                Text("测量完成")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                    .fontWeight(.medium)
+                                
+                                Text("ME(Mean Euclidean): \(String(format: "%.4f", results.meanEuclideanErrorInCM)) (CM);")
+                                    .font(.title3)
+                                    .foregroundColor(.white)
+                                    .fontWeight(.bold)
+                                
+                                Text("Data size: \(results.dataSize)。")
+                                    .font(.subheadline)
+                                    .foregroundColor(.white.opacity(0.9))
+                            }
+                            .padding()
+                            .background(Color.blue.opacity(0.3))
+                            .cornerRadius(10)
+                            
                             // 统计信息
                             VStack(alignment: .leading, spacing: 10) {
-                                Text("📊 统计数据")
+                                Text("📊 详细统计数据")
                                     .font(.headline)
                                     .foregroundColor(.white)
                                     .fontWeight(.bold)
@@ -527,14 +548,27 @@ struct ContentView: View {
                             .background(Color.gray.opacity(0.3))
                             .cornerRadius(10)
                             
-                            Button("关闭") {
-                                measurementManager.showTrajectoryResults = false
+                            // 按钮组
+                            HStack(spacing: 20) {
+                                Button("显示轨迹对比") {
+                                    measurementManager.showTrajectoryVisualization = true
+                                    measurementManager.showTrajectoryResults = false  // 关闭结果页面
+                                }
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(Color.blue)
+                                .cornerRadius(10)
+                                
+                                Button("关闭") {
+                                    measurementManager.showTrajectoryResults = false
+                                }
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(Color.purple)
+                                .cornerRadius(10)
                             }
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.purple)
-                            .cornerRadius(10)
                         }
                         .padding(30)
                     }
@@ -543,8 +577,18 @@ struct ContentView: View {
                 }
                 .zIndex(200) // 确保显示在最上层
             }
+            
+            // 轨迹对比可视化视图
+            if measurementManager.showTrajectoryVisualization, let results = measurementManager.trajectoryResults {
+                TrajectoryComparisonView(
+                    trajectoryResults: results,
+                    screenSize: Device.frameSize,
+                    showVisualization: $measurementManager.showTrajectoryVisualization
+                )
+                .zIndex(300) // 确保显示在最上层
+            }
 
-            // 倒计时显示
+            // 倒计时显示 - gaze track模式
             if trajectoryManager.showCountdown {
                 Text("\(trajectoryManager.countdownValue)")
                     .font(.system(size: 100, weight: .bold))
@@ -553,6 +597,29 @@ struct ContentView: View {
                     .background(Color.black.opacity(0.7))
                     .cornerRadius(20)
                     .transition(.scale)
+            }
+            
+            // 8字形轨迹测量倒计时显示
+            if measurementManager.showTrajectoryCountdown {
+                VStack(spacing: 20) {
+                    Text("8字形轨迹测量")
+                        .font(.title)
+                        .foregroundColor(.white)
+                        .fontWeight(.bold)
+                    
+                    Text("\(measurementManager.trajectoryCountdownValue)")
+                        .font(.system(size: 120, weight: .bold))
+                        .foregroundColor(.purple)
+                        .padding(40)
+                        .background(Color.black.opacity(0.8))
+                        .cornerRadius(30)
+                    
+                    Text("准备开始测量")
+                        .font(.headline)
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                .transition(.scale.combined(with: .opacity))
+                .animation(.spring(response: 0.5, dampingFraction: 0.6), value: measurementManager.trajectoryCountdownValue)
             }
 
             // 视线点显示 - 根据模式显示不同颜色
@@ -578,6 +645,14 @@ struct ContentView: View {
             if mode == .calibration || mode == .measurement {
                 videoManager.videoMode = false
                 videoManager.player.pause()
+            }
+            
+            // 设置测量完成后的回调，自动关闭gaze track
+            measurementManager.onMeasurementCompleted = {
+                DispatchQueue.main.async {
+                    print("📱 测量完成，自动关闭eye gaze tracking以节省能耗")
+                    eyeGazeActive = false
+                }
             }
             
             // 如果是自动启动模式，自动开始眼动追踪

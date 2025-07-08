@@ -24,6 +24,16 @@ struct TrajectoryMeasurementResult {
     let minError: CGFloat
     let totalDuration: TimeInterval
     let coveragePercentage: Float  // 屏幕覆盖率
+    
+    // 计算ME(Mean Euclidean)误差，以厘米为单位
+    var meanEuclideanErrorInCM: Double {
+        return Device.pointsToCentimeters(averageError)
+    }
+    
+    // 数据点数量
+    var dataSize: Int {
+        return trajectoryPoints.count
+    }
 }
 
 class MeasurementManager: ObservableObject {
@@ -35,6 +45,9 @@ class MeasurementManager: ObservableObject {
     @Published var showMeasurementResults: Bool = false
     @Published var showCalibrationPoint: Bool = false
     
+    // 测量完成后的回调
+    var onMeasurementCompleted: (() -> Void)?
+    
     // 8字形轨迹测量相关属性
     @Published var isTrajectoryMeasuring: Bool = false
     @Published var trajectoryMeasurementCompleted: Bool = false
@@ -42,6 +55,12 @@ class MeasurementManager: ObservableObject {
     @Published var showTrajectoryResults: Bool = false
     @Published var currentTrajectoryPoint: CGPoint = .zero
     @Published var showTrajectoryPoint: Bool = false
+    @Published var showTrajectoryVisualization: Bool = false
+    
+    // 倒计时相关属性
+    @Published var isTrajectoryCountingDown: Bool = false
+    @Published var trajectoryCountdownValue: Int = 3
+    @Published var showTrajectoryCountdown: Bool = false
     
     private var measurementStartTime: Date?
     private var currentMeasurementPoints: [CGPoint] = []
@@ -50,6 +69,7 @@ class MeasurementManager: ObservableObject {
     private var trajectoryStartTime: Date?
     private var trajectoryMeasurementPoints: [TrajectoryMeasurementPoint] = []
     private var trajectoryTimer: Timer?
+    private var trajectoryCountdownTimer: Timer?
     @Published var trajectoryProgress: Float = 0.0
     private let trajectoryDuration: TimeInterval = 30.0  // 8字形轨迹总时长30秒，在保证连续性的前提下提高速度
     
@@ -168,6 +188,9 @@ class MeasurementManager: ObservableObject {
             
             // 显示测量结果
             showMeasurementResults = true
+            
+            // 自动关闭gaze track以节省能耗
+            onMeasurementCompleted?()
         } else {
             print("测量失败：没有收集到足够的数据")
         }
@@ -255,16 +278,56 @@ class MeasurementManager: ObservableObject {
             stopMeasurement()
         }
         
-        isTrajectoryMeasuring = true
+        // 重置所有状态
+        isTrajectoryMeasuring = false  // 还没真正开始测量
         trajectoryMeasurementCompleted = false
         showTrajectoryResults = false
         trajectoryMeasurementPoints.removeAll()
         trajectoryProgress = 0.0
+        trajectoryStartTime = nil  // 暂时不设置开始时间
+        showTrajectoryPoint = true  // 倒计时期间显示起始轨迹点，让用户准备
+        
+        // 设置起始点位置（屏幕中心）
+        let frameSize = Device.frameSize
+        currentTrajectoryPoint = CGPoint(x: frameSize.width / 2, y: frameSize.height / 2)
+        
+        // 开始倒计时
+        startTrajectoryCountdown()
+    }
+    
+    // 开始轨迹测量倒计时
+    private func startTrajectoryCountdown() {
+        isTrajectoryCountingDown = true
+        showTrajectoryCountdown = true
+        trajectoryCountdownValue = 3
+        
+        print("开始8字形轨迹测量倒计时...")
+        
+        trajectoryCountdownTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
+            guard let self = self else { return }
+            
+            self.trajectoryCountdownValue -= 1
+            
+            if self.trajectoryCountdownValue <= 0 {
+                // 倒计时结束，开始真正的轨迹测量
+                timer.invalidate()
+                self.trajectoryCountdownTimer = nil
+                self.finishCountdownAndStartTrajectory()
+            }
+        }
+    }
+    
+    // 倒计时结束，开始真正的轨迹测量
+    private func finishCountdownAndStartTrajectory() {
+        isTrajectoryCountingDown = false
+        showTrajectoryCountdown = false
+        
+        // 现在开始真正的轨迹测量
+        isTrajectoryMeasuring = true
         trajectoryStartTime = Date()
         showTrajectoryPoint = true
         
-        print("开始8字形轨迹测量，总时长: \(trajectoryDuration)秒")
-        print("8字形测量已启动，请确保眼动追踪处于活跃状态")
+        print("倒计时结束，开始8字形轨迹测量，总时长: \(trajectoryDuration)秒")
         print("轨迹将从屏幕中心开始，顺时针完成上圆，再逆时针完成下圆，保证完全连续性")
         print("轨迹将充分覆盖屏幕边缘区域，提供更准确的gaze tracking测量")
         
@@ -293,7 +356,8 @@ class MeasurementManager: ObservableObject {
     
     // 收集8字形轨迹测量数据
     func collectTrajectoryMeasurementPoint(_ actualPoint: CGPoint) {
-        guard isTrajectoryMeasuring,
+        // 只在真正的轨迹测量期间收集数据，倒计时期间不收集
+        guard isTrajectoryMeasuring && !isTrajectoryCountingDown,
               let startTime = trajectoryStartTime else { return }
         
         let currentTime = Date().timeIntervalSince(startTime)
@@ -367,6 +431,9 @@ class MeasurementManager: ObservableObject {
             print("- 采集数据点: \(trajectoryMeasurementPoints.count)个")
             
             showTrajectoryResults = true
+            
+            // 自动关闭gaze track以节省能耗
+            onMeasurementCompleted?()
         } else {
             print("8字形轨迹测量失败：没有收集到数据")
         }
@@ -374,16 +441,24 @@ class MeasurementManager: ObservableObject {
     
     // 停止8字形轨迹测量
     func stopTrajectoryMeasurement() {
+        // 停止所有定时器
         trajectoryTimer?.invalidate()
         trajectoryTimer = nil
+        trajectoryCountdownTimer?.invalidate()
+        trajectoryCountdownTimer = nil
         
+        // 重置所有状态
         isTrajectoryMeasuring = false
+        isTrajectoryCountingDown = false
         trajectoryMeasurementCompleted = false
         showTrajectoryPoint = false
         showTrajectoryResults = false
+        showTrajectoryCountdown = false
+        showTrajectoryVisualization = false
         trajectoryMeasurementPoints.removeAll()
         trajectoryResults = nil
         trajectoryStartTime = nil
         trajectoryProgress = 0.0
+        trajectoryCountdownValue = 3
     }
 }
