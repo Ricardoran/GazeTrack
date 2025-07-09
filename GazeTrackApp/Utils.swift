@@ -110,8 +110,9 @@ struct Device {
     
     // 将厘米误差转换为角度误差（度）
     static func centimetersToDegrees(_ centimeters: Double, eyeToScreenDistance: Double) -> Double {
-        // 使用反正切函数计算角度
-        // angle_degrees = atan(distance_cm / eye_to_screen_distance_cm) * (180/π)
+        // 使用眼动追踪研究的标准公式计算角度误差
+        // θ = arctan(distance_on_screen / viewing_distance) × (180/π)
+        // 参考: PMC6165570, SR Research等权威眼动追踪研究
         let angleRadians = atan(centimeters / eyeToScreenDistance)
         let angleDegrees = angleRadians * (180.0 / Double.pi)
         
