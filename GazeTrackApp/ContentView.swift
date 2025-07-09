@@ -14,6 +14,8 @@ struct ContentView: View {
     @State private var isWinking: Bool = false
     @State private var timerPublisher = Timer.publish(every: 1.0/60.0, on: .main, in: .common).autoconnect()
     @State private var showCalibrationGreeting = false
+    @State private var smoothingIntensity: Float = 0.6 // 针对眨眼抖动优化的默认值
+    @State private var arView: CustomARView?
 
     // 管理器
     @ObservedObject var calibrationManager: CalibrationManager
@@ -43,7 +45,9 @@ struct ContentView: View {
                     lookAtPoint: $lookAtPoint,
                     isWinking: $isWinking,
                     calibrationManager: calibrationManager,
-                    measurementManager: measurementManager
+                    measurementManager: measurementManager,
+                    smoothingIntensity: $smoothingIntensity,
+                    arView: $arView
                 )
                 .onReceive(timerPublisher) { _ in
                     if eyeGazeActive && !trajectoryManager.isCountingDown,
@@ -80,7 +84,9 @@ struct ContentView: View {
                     lookAtPoint: $lookAtPoint,
                     isWinking: $isWinking,
                     calibrationManager: calibrationManager,
-                    measurementManager: measurementManager
+                    measurementManager: measurementManager,
+                    smoothingIntensity: $smoothingIntensity,
+                    arView: $arView
                 )
                 .opacity(0)  // 完全透明，只用于数据收集
                 .edgesIgnoringSafeArea(.all)
@@ -299,29 +305,8 @@ struct ContentView: View {
                         }
                     }
                     
-                    // 视频透明度滑块（仅在视频模式下显示，且在眼动追踪模式）
-                    if videoManager.videoMode && mode == .gazeTrack {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("视频透明度: \(Int(videoManager.videoOpacity * 100))%")
-                                .font(.subheadline)
-                                .foregroundColor(.white)
-                                .padding(8)
-                                .background(Color.black.opacity(0.6))
-                                .cornerRadius(5)
-                            
-                            Slider(value: $videoManager.videoOpacity, in: 0.1...1.0, onEditingChanged: { editing in
-                                if editing {
-                                    uiManager.resetButtonHideTimer()
-                                }
-                            })
-                            .padding(.horizontal)
-                            .background(Color.black.opacity(0.6))
-                            .cornerRadius(10)
-                            .padding(.horizontal, 10)
-                        }
-                        .padding(.vertical, 5)
-                    }
                     
+                        
                     // 开始/停止按钮 - 只在眼动追踪模式显示
                     if mode == .gazeTrack {
                         Button(action: {
@@ -374,19 +359,88 @@ struct ContentView: View {
                 }
                 .opacity(uiManager.showButtons ? 1 : 0)
             }
-            .padding(.bottom, 50)
+            .padding(.bottom, 120) // 增加底部空间给slider区域
             .opacity(uiManager.showButtons ? 1 : 0)
             .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
-            .alert(isPresented: $uiManager.showExportAlert) {
-                Alert(title: Text("导出完成"),
-                      message: Text("轨迹导出成功。"),
-                      dismissButton: .default(Text("确定")))
+            
+            // 滑块组 - 位于屏幕底部，统一管理所有滑块
+            VStack(spacing: 8) {
+                // 视频透明度滑块（仅在视频模式下显示，且在眼动追踪模式）
+                if videoManager.videoMode && mode == .gazeTrack {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("视频透明度: \(Int(videoManager.videoOpacity * 100))%")
+                            .font(.subheadline)
+                            .foregroundColor(.white)
+                            .padding(8)
+                            .background(Color.black.opacity(0.6))
+                            .cornerRadius(5)
+                        
+                        Slider(value: $videoManager.videoOpacity, in: 0.1...1.0, onEditingChanged: { editing in
+                            if editing {
+                                uiManager.resetButtonHideTimer()
+                            }
+                        })
+                        .padding(.horizontal)
+                        .background(Color.black.opacity(0.6))
+                        .cornerRadius(10)
+                        .padding(.horizontal, 10)
+                    }
+                    .padding(.vertical, 5)
+                }
+                
+                // 平滑强度控制滑块 - 在眼动追踪模式下显示
+                if mode == .gazeTrack {
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack {
+                            Text("平滑强度: \(Int(smoothingIntensity * 100))%")
+                                .font(.subheadline)
+                                .foregroundColor(.white)
+                                .fontWeight(.medium)
+                            
+                            Spacer()
+                            
+                            Text("🎯 抗抖动")
+                                .font(.caption2)
+                                .foregroundColor(.orange)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.orange.opacity(0.2))
+                                .cornerRadius(8)
+                        }
+                        .padding(8)
+                        .background(Color.black.opacity(0.6))
+                        .cornerRadius(5)
+                        
+                        HStack {
+                            Text("响应")
+                                .font(.caption2)
+                                .foregroundColor(.white.opacity(0.7))
+                            
+                            Slider(value: Binding(
+                                get: { Double(smoothingIntensity) },
+                                set: { smoothingIntensity = Float($0) }
+                            ), in: 0.0...1.0, onEditingChanged: { editing in
+                                if editing {
+                                    uiManager.resetButtonHideTimer()
+                                }
+                            })
+                            .accentColor(.blue)
+                            
+                            Text("稳定")
+                                .font(.caption2)
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+                        .padding(.horizontal)
+                        .background(Color.black.opacity(0.6))
+                        .cornerRadius(10)
+                        .padding(.horizontal, 10)
+                    }
+                    .padding(.vertical, 5)
+                }
             }
-            .alert(isPresented: $trajectoryManager.showExportAlert) {
-                Alert(title: Text("Export Complete"),
-                      message: Text("Trajectory exported successfully."),
-                      dismissButton: .default(Text("OK")))
-            }
+            .padding(.bottom, 20)
+            .opacity(uiManager.showButtons ? 1 : 0)
+            .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
 
             // 轨迹可视化视图
             if trajectoryManager.showTrajectoryView && !trajectoryManager.gazeTrajectory.isEmpty {
@@ -732,6 +786,16 @@ struct ContentView: View {
             uiManager.cleanup()
             videoManager.cleanup()
         }
+        .alert(isPresented: $uiManager.showExportAlert) {
+            Alert(title: Text("导出完成"),
+                  message: Text("轨迹导出成功。"),
+                  dismissButton: .default(Text("确定")))
+        }
+        .alert(isPresented: $trajectoryManager.showExportAlert) {
+            Alert(title: Text("Export Complete"),
+                  message: Text("Trajectory exported successfully."),
+                  dismissButton: .default(Text("OK")))
+        }
     }
     
     // button functions
@@ -744,6 +808,9 @@ struct ContentView: View {
             trajectoryManager.resetTrajectory()
             eyeGazeActive = true
             calibrationManager.stopCalibration()
+            
+            // 重置Kalman滤波器
+            resetKalmanFilter()
             
             // 开始倒计时
             trajectoryManager.startCountdown {
@@ -782,6 +849,11 @@ struct ContentView: View {
         trajectoryManager.exportTrajectory {
             trajectoryManager.showExportAlert = true
         }
+    }
+    
+    // 重置Kalman滤波器
+    func resetKalmanFilter() {
+        arView?.resetKalmanFilter()
     }
     
     // 分析误差分布
