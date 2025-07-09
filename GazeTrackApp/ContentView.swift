@@ -206,7 +206,7 @@ struct ContentView: View {
                 Group {
                     // 校准按钮 - 只在校准模式显示
                     if mode == .calibration {
-                        Button("开始校准") {
+                        Button("开始校准(deprecated)") {
                             if let vc = self.getRootViewController() {
                                 checkCameraPermissionAndStartCalibration(presentingViewController: vc)
                             } else {
@@ -222,6 +222,8 @@ struct ContentView: View {
                         .padding()
                         .background(Color.red)
                         .cornerRadius(10)
+                        .disabled(true)
+                        .opacity(0.5)
                         
                         // 快捷跳转到Gaze Track按钮 - 只在校准完成后显示
                         if calibrationManager.calibrationCompleted {
@@ -238,7 +240,7 @@ struct ContentView: View {
                     
                     // 测量按钮 - 只在测量模式显示
                     if mode == .measurement {
-                        Button("开始测量") {
+                        Button("开始测量(deprecated)") {
                             measurementManager.startMeasurement()
                         }
                         .font(.headline)
@@ -246,6 +248,8 @@ struct ContentView: View {
                         .padding()
                         .background(Color.orange)
                         .cornerRadius(10)
+                        .disabled(true)
+                        .opacity(0.5)
                         
                         // 8字形测量按钮
                         Button("8字测量") {
