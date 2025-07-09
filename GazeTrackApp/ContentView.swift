@@ -171,7 +171,7 @@ struct ContentView: View {
                 }
             }
 
-            // Back button
+            // Back button - 使用与其他按钮一致的隐藏逻辑
             VStack {
                 HStack {
                     Button(action: {
@@ -197,6 +197,8 @@ struct ContentView: View {
                 }
                 Spacer()
             }
+            .opacity(uiManager.showButtons ? 1 : 0)
+            .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
             .zIndex(1000)
             
             // 按钮组 - 根据模式显示不同按钮
@@ -258,6 +260,22 @@ struct ContentView: View {
                         .foregroundColor(.white)
                         .padding()
                         .background(Color.purple)
+                        .cornerRadius(10)
+                        .disabled(measurementManager.isMeasuring) // 静态测量时禁用
+                        
+                        // 边缘测量按钮
+                        Button("边缘测量") {
+                            // 启动边缘测量前先确保眼动追踪处于活跃状态
+                            if !eyeGazeActive {
+                                eyeGazeActive = true
+                                print("自动启动眼动追踪以支持边缘测量")
+                            }
+                            measurementManager.startEdgeCoverageMeasurement()
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.green)
                         .cornerRadius(10)
                         .disabled(measurementManager.isMeasuring) // 静态测量时禁用
                     }
@@ -439,13 +457,14 @@ struct ContentView: View {
                 .zIndex(200) // 确保显示在最上层
             }
             
-            // 8字形测量进度指示器 - 只在真正测量时显示，倒计时期间不显示
+            // 轨迹测量进度指示器 - 只在真正测量时显示，倒计时期间不显示
             if measurementManager.isTrajectoryMeasuring && !measurementManager.isTrajectoryCountingDown {
                 VStack {
                     HStack {
                         Spacer()
                         VStack(spacing: 10) {
-                            Text("8字形轨迹测量")
+                            // 根据轨迹类型显示不同标题
+                            Text(measurementManager.currentTrajectoryType == .figure8 ? "8字测量" : "边缘测量")
                                 .font(.headline)
                                 .foregroundColor(.white)
                                 .fontWeight(.bold)
@@ -465,7 +484,7 @@ struct ContentView: View {
                                 .foregroundColor(.white.opacity(0.8))
                         }
                         .padding()
-                        .background(Color.black.opacity(0.3))  // 降低透明度从0.7到0.3
+                        .background(Color.black.opacity(0.3))
                         .cornerRadius(15)
                         .padding(.trailing, 20)
                     }
@@ -482,7 +501,8 @@ struct ContentView: View {
                     
                     ScrollView {
                         VStack(spacing: 20) {
-                            Text("8字形轨迹测量结果")
+                            // 根据轨迹类型显示不同标题
+                            Text(results.trajectoryType == .figure8 ? "8字测量结果" : "边缘测量结果")
                                 .font(.title)
                                 .fontWeight(.bold)
                                 .foregroundColor(.white)
@@ -593,10 +613,11 @@ struct ContentView: View {
                     .transition(.scale)
             }
             
-            // 8字形轨迹测量倒计时显示
+            // 轨迹测量倒计时显示
             if measurementManager.showTrajectoryCountdown {
                 VStack(spacing: 20) {
-                    Text("8字形轨迹测量")
+                    // 根据轨迹类型显示不同标题
+                    Text(measurementManager.currentTrajectoryType == .figure8 ? "8字测量" : "边缘测量")
                         .font(.title)
                         .foregroundColor(.white)
                         .fontWeight(.bold)

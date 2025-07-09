@@ -1,6 +1,12 @@
 import SwiftUI
 import ARKit
 
+// 轨迹测量类型
+enum TrajectoryType {
+    case figure8    // 8字形轨迹
+    case edgeCoverage   // 边缘覆盖轨迹
+}
+
 // 测量数据结构
 struct MeasurementPoint {
     let targetPosition: CGPoint
@@ -17,7 +23,7 @@ struct TrajectoryMeasurementPoint {
     let eyeToScreenDistance: Float  // 眼睛到屏幕的距离（厘米）
 }
 
-// 8字形轨迹测量结果
+// 轨迹测量结果
 struct TrajectoryMeasurementResult {
     let trajectoryPoints: [TrajectoryMeasurementPoint]
     let averageError: CGFloat
@@ -25,6 +31,7 @@ struct TrajectoryMeasurementResult {
     let minError: CGFloat
     let totalDuration: TimeInterval
     let coveragePercentage: Float  // 屏幕覆盖率
+    let trajectoryType: TrajectoryType  // 轨迹类型
     
     // 计算ME(Mean Euclidean)误差，以厘米为单位
     var meanEuclideanErrorInCM: Double {
@@ -80,7 +87,7 @@ class MeasurementManager: ObservableObject {
     // 测量完成后的回调
     var onMeasurementCompleted: (() -> Void)?
     
-    // 8字形轨迹测量相关属性
+    // 轨迹测量相关属性（支持8字形和边缘覆盖）
     @Published var isTrajectoryMeasuring: Bool = false
     @Published var trajectoryMeasurementCompleted: Bool = false
     @Published var trajectoryResults: TrajectoryMeasurementResult?
@@ -89,6 +96,7 @@ class MeasurementManager: ObservableObject {
     @Published var showTrajectoryPoint: Bool = false
     @Published var showTrajectoryVisualization: Bool = false
     @Published var currentEyeToScreenDistance: Float = 30.0
+    @Published var currentTrajectoryType: TrajectoryType = .figure8
     
     // 倒计时相关属性
     @Published var isTrajectoryCountingDown: Bool = false
@@ -104,7 +112,15 @@ class MeasurementManager: ObservableObject {
     private var trajectoryTimer: Timer?
     private var trajectoryCountdownTimer: Timer?
     @Published var trajectoryProgress: Float = 0.0
-    private let trajectoryDuration: TimeInterval = 30.0  // 8字形轨迹总时长30秒，在保证连续性的前提下提高速度
+    private var trajectoryDuration: TimeInterval {
+        // 根据轨迹类型设置不同的时长
+        switch currentTrajectoryType {
+        case .figure8:
+            return 30.0  // 8字测量30秒
+        case .edgeCoverage:
+            return 45.0  // 边缘测量45秒
+        }
+    }
     
     // 测量点位置（与校准相同的5个点）
     private let measurementPositions: [(x: CGFloat, y: CGFloat)] = [
@@ -243,6 +259,79 @@ class MeasurementManager: ObservableObject {
     
     // MARK: - 8字形轨迹测量功能
     
+    // 生成基于正弦波的边缘覆盖轨迹（带反向传播）
+    private func generateEdgeCoveragePath(at progress: Float) -> CGPoint {
+        let frameSize = Device.frameSize
+        
+        // 计算安全边距（考虑灵动岛和home indicator）
+        let marginX: CGFloat = 30.0
+        let marginY: CGFloat = 60.0  // 增加Y边距以避开灵动岛和home indicator
+        
+        // 计算可用区域
+        let availableWidth = frameSize.width - 2 * marginX
+        let availableHeight = frameSize.height - 2 * marginY
+        
+        // 将整个轨迹分为两个阶段：前进和反向
+        let phase1Duration: Float = 0.5  // 前50%时间用于第一阶段
+        let phase2Duration: Float = 0.5  // 后50%时间用于第二阶段
+        
+        let x: CGFloat
+        let y: CGFloat
+        
+        if progress <= phase1Duration {
+            // 第一阶段：从左上角开始的正弦波，从上到下
+            let phase1Progress = progress / phase1Duration
+            let waveFrequency: Float = 3.0  // 3个完整波形
+            let amplitude = availableWidth / 2.0
+            let centerX = frameSize.width / 2.0
+            
+            // Y坐标从上到下
+            y = marginY + CGFloat(phase1Progress) * availableHeight
+            
+            // X坐标按正弦波变化，调整起始相位让轨迹从左上角开始
+            // 左上角对应的相位：sin(phase) = -1，即 phase = 3π/2
+            let startPhase: Float = 3.0 * Float.pi / 2.0  // 从左上角开始
+            let wavePhase = startPhase + phase1Progress * waveFrequency * 2.0 * Float.pi
+            let waveOffset = amplitude * CGFloat(sin(wavePhase))
+            x = centerX + waveOffset
+            
+        } else {
+            // 第二阶段：从下到上的正弦波（反向传播，改变频率以减少重叠）
+            let phase2Progress = (progress - phase1Duration) / phase2Duration
+            let waveFrequency: Float = 2.5  // 改变频率为2.5个波形，减少重叠
+            let amplitude = availableWidth / 2.0
+            let centerX = frameSize.width / 2.0
+            
+            // Y坐标从下到上（反向）
+            y = marginY + availableHeight - CGFloat(phase2Progress) * availableHeight
+            
+            // X坐标按正弦波变化，但加上相位偏移确保连续性
+            // 计算第一阶段结束时的X位置，确保第二阶段从这个位置开始
+            let phase1StartPhase: Float = 3.0 * Float.pi / 2.0  // 第一阶段起始相位
+            let phase1EndPhase = phase1StartPhase + 1.0 * 3.0 * 2.0 * Float.pi  // 第一阶段结束时的相位
+            let phase1EndX = centerX + amplitude * CGFloat(sin(phase1EndPhase))
+            
+            // 第二阶段的起始相位，确保从第一阶段结束位置开始
+            let phase2StartPhase = asin(Float((phase1EndX - centerX) / amplitude))
+            let wavePhase = phase2StartPhase + phase2Progress * waveFrequency * 2.0 * Float.pi
+            let waveOffset = amplitude * CGFloat(sin(wavePhase))
+            x = centerX + waveOffset
+        }
+        
+        // 确保坐标在屏幕边界内
+        let clampedX = max(marginX, min(frameSize.width - marginX, x))
+        let clampedY = max(marginY, min(frameSize.height - marginY, y))
+        
+        return CGPoint(x: clampedX, y: clampedY)
+    }
+    
+    // 辅助函数：两点间线性插值
+    private func interpolatePoints(from start: CGPoint, to end: CGPoint, t: CGFloat) -> CGPoint {
+        let x = start.x + (end.x - start.x) * t
+        let y = start.y + (end.y - start.y) * t
+        return CGPoint(x: x, y: y)
+    }
+    
     // 生成8字形路径上的点
     private func generate8ShapePath(at progress: Float) -> CGPoint {
         let frameSize = Device.frameSize
@@ -306,10 +395,23 @@ class MeasurementManager: ObservableObject {
     
     // 开始8字形轨迹测量
     func startTrajectoryMeasurement() {
+        startTrajectoryMeasurement(type: .figure8)
+    }
+    
+    // 开始边缘覆盖轨迹测量
+    func startEdgeCoverageMeasurement() {
+        startTrajectoryMeasurement(type: .edgeCoverage)
+    }
+    
+    // 通用轨迹测量开始方法
+    private func startTrajectoryMeasurement(type: TrajectoryType) {
         // 停止任何正在进行的静态测量
         if isMeasuring {
             stopMeasurement()
         }
+        
+        // 设置轨迹类型
+        currentTrajectoryType = type
         
         // 重置所有状态
         isTrajectoryMeasuring = false  // 还没真正开始测量
@@ -334,7 +436,8 @@ class MeasurementManager: ObservableObject {
         showTrajectoryCountdown = true
         trajectoryCountdownValue = 3
         
-        print("开始8字形轨迹测量倒计时...")
+        let measurementType = currentTrajectoryType == .figure8 ? "8字测量" : "边缘测量"
+        print("开始\(measurementType)倒计时...")
         
         trajectoryCountdownTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
             guard let self = self else { return }
@@ -360,9 +463,8 @@ class MeasurementManager: ObservableObject {
         trajectoryStartTime = Date()
         showTrajectoryPoint = true
         
-        print("倒计时结束，开始8字形轨迹测量，总时长: \(trajectoryDuration)秒")
-        print("轨迹将从屏幕中心开始，顺时针完成上圆，再逆时针完成下圆，保证完全连续性")
-        print("轨迹将充分覆盖屏幕边缘区域，提供更准确的gaze tracking测量")
+        let measurementType = currentTrajectoryType == .figure8 ? "8字测量" : "边缘测量"
+        print("倒计时结束，开始\(measurementType)，总时长: \(trajectoryDuration)秒")
         
         // 启动定时器，每16ms更新一次（约60fps）
         trajectoryTimer = Timer.scheduledTimer(withTimeInterval: 1.0/60.0, repeats: true) { [weak self] timer in
@@ -383,8 +485,13 @@ class MeasurementManager: ObservableObject {
             return
         }
         
-        // 更新当前目标点
-        currentTrajectoryPoint = generate8ShapePath(at: trajectoryProgress)
+        // 更新当前目标点（根据轨迹类型）
+        switch currentTrajectoryType {
+        case .figure8:
+            currentTrajectoryPoint = generate8ShapePath(at: trajectoryProgress)
+        case .edgeCoverage:
+            currentTrajectoryPoint = generateEdgeCoveragePath(at: trajectoryProgress)
+        }
     }
     
     // 收集8字形轨迹测量数据
@@ -415,7 +522,8 @@ class MeasurementManager: ObservableObject {
         
         #if DEBUG
         if trajectoryMeasurementPoints.count % 60 == 0 {  // 每秒打印一次
-            print("8字形测量进度: \(Int(trajectoryProgress * 100))%, 当前误差: \(String(format: "%.1f", error))pt, 距离: \(String(format: "%.1f", eyeToScreenDistance))cm, 已采集: \(trajectoryMeasurementPoints.count)点")
+            let measurementType = currentTrajectoryType == .figure8 ? "8字测量" : "边缘测量"
+            print("\(measurementType)进度: \(Int(trajectoryProgress * 100))%, 当前误差: \(String(format: "%.1f", error))pt, 距离: \(String(format: "%.1f", eyeToScreenDistance))cm, 已采集: \(trajectoryMeasurementPoints.count)点")
         }
         #endif
     }
@@ -456,10 +564,12 @@ class MeasurementManager: ObservableObject {
                 maxError: maxError,
                 minError: minError,
                 totalDuration: duration,
-                coveragePercentage: coveragePercentage
+                coveragePercentage: coveragePercentage,
+                trajectoryType: currentTrajectoryType
             )
             
-            print("8字形轨迹测量完成！")
+            let measurementType = currentTrajectoryType == .figure8 ? "8字测量" : "边缘测量"
+            print("\(measurementType)完成！")
             print("- 平均误差: \(String(format: "%.1f", avgError))pt")
             print("- 最大误差: \(String(format: "%.1f", maxError))pt")
             print("- 最小误差: \(String(format: "%.1f", minError))pt")
@@ -472,7 +582,8 @@ class MeasurementManager: ObservableObject {
             // 自动关闭gaze track以节省能耗
             onMeasurementCompleted?()
         } else {
-            print("8字形轨迹测量失败：没有收集到数据")
+            let measurementType = currentTrajectoryType == .figure8 ? "8字测量" : "边缘测量"
+            print("\(measurementType)失败：没有收集到数据")
         }
     }
     

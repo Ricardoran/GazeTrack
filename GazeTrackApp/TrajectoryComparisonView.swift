@@ -32,6 +32,7 @@ struct TrajectoryComparisonView: View {
                         Text("轨迹对比分析")
                             .font(.title2)
                             .fontWeight(.bold)
+                            .foregroundColor(.black)
                         
                         Spacer()
                     }
@@ -118,6 +119,7 @@ struct TrajectoryComparisonView: View {
                                     .frame(width: 20, height: 3)
                                 Text("目标轨迹")
                                     .font(.caption)
+                                    .foregroundColor(.gray)
                             }
                             
                             HStack {
@@ -126,6 +128,7 @@ struct TrajectoryComparisonView: View {
                                     .frame(width: 6, height: 6)
                                 Text("实际轨迹")
                                     .font(.caption)
+                                    .foregroundColor(.gray)
                             }
                         }
                         
@@ -198,8 +201,18 @@ struct TrajectoryComparisonView: View {
         }
     }
     
-    // 生成Ground Truth轨迹（8字形）
+    // 生成Ground Truth轨迹（根据轨迹类型）
     private func generateGroundTruthTrajectory() -> [CGPoint] {
+        switch trajectoryResults.trajectoryType {
+        case .figure8:
+            return generateFigure8Trajectory()
+        case .edgeCoverage:
+            return generateEdgeCoverageTrajectory()
+        }
+    }
+    
+    // 生成8字形轨迹
+    private func generateFigure8Trajectory() -> [CGPoint] {
         var points: [CGPoint] = []
         let centerX = screenSize.width / 2
         let centerY = screenSize.height / 2
@@ -247,6 +260,90 @@ struct TrajectoryComparisonView: View {
         return points
     }
     
+    // 生成边缘覆盖轨迹
+    private func generateEdgeCoverageTrajectory() -> [CGPoint] {
+        var points: [CGPoint] = []
+        let totalPoints = 200
+        
+        for i in 0...totalPoints {
+            let progress = Float(i) / Float(totalPoints)
+            points.append(generateEdgeCoveragePoint(at: progress))
+        }
+        
+        return points
+    }
+    
+    // 生成基于正弦波的边缘覆盖轨迹（带反向传播，与MeasurementManager保持一致）
+    private func generateEdgeCoveragePoint(at progress: Float) -> CGPoint {
+        // 计算安全边距（考虑灵动岛和home indicator）
+        let marginX: CGFloat = 30.0
+        let marginY: CGFloat = 60.0  // 增加Y边距以避开灵动岛和home indicator
+        
+        // 计算可用区域
+        let availableWidth = screenSize.width - 2 * marginX
+        let availableHeight = screenSize.height - 2 * marginY
+        
+        // 将整个轨迹分为两个阶段：前进和反向
+        let phase1Duration: Float = 0.5  // 前50%时间用于第一阶段
+        let phase2Duration: Float = 0.5  // 后50%时间用于第二阶段
+        
+        let x: CGFloat
+        let y: CGFloat
+        
+        if progress <= phase1Duration {
+            // 第一阶段：从左上角开始的正弦波，从上到下
+            let phase1Progress = progress / phase1Duration
+            let waveFrequency: Float = 3.0  // 3个完整波形
+            let amplitude = availableWidth / 2.0
+            let centerX = screenSize.width / 2.0
+            
+            // Y坐标从上到下
+            y = marginY + CGFloat(phase1Progress) * availableHeight
+            
+            // X坐标按正弦波变化，调整起始相位让轨迹从左上角开始
+            // 左上角对应的相位：sin(phase) = -1，即 phase = 3π/2
+            let startPhase: Float = 3.0 * Float.pi / 2.0  // 从左上角开始
+            let wavePhase = startPhase + phase1Progress * waveFrequency * 2.0 * Float.pi
+            let waveOffset = amplitude * CGFloat(sin(wavePhase))
+            x = centerX + waveOffset
+            
+        } else {
+            // 第二阶段：从下到上的正弦波（反向传播，改变频率以减少重叠）
+            let phase2Progress = (progress - phase1Duration) / phase2Duration
+            let waveFrequency: Float = 2.5  // 改变频率为2.5个波形，减少重叠
+            let amplitude = availableWidth / 2.0
+            let centerX = screenSize.width / 2.0
+            
+            // Y坐标从下到上（反向）
+            y = marginY + availableHeight - CGFloat(phase2Progress) * availableHeight
+            
+            // X坐标按正弦波变化，但加上相位偏移确保连续性
+            // 计算第一阶段结束时的X位置，确保第二阶段从这个位置开始
+            let phase1StartPhase: Float = 3.0 * Float.pi / 2.0  // 第一阶段起始相位
+            let phase1EndPhase = phase1StartPhase + 1.0 * 3.0 * 2.0 * Float.pi  // 第一阶段结束时的相位
+            let phase1EndX = centerX + amplitude * CGFloat(sin(phase1EndPhase))
+            
+            // 第二阶段的起始相位，确保从第一阶段结束位置开始
+            let phase2StartPhase = asin(Float((phase1EndX - centerX) / amplitude))
+            let wavePhase = phase2StartPhase + phase2Progress * waveFrequency * 2.0 * Float.pi
+            let waveOffset = amplitude * CGFloat(sin(wavePhase))
+            x = centerX + waveOffset
+        }
+        
+        // 确保坐标在屏幕边界内
+        let clampedX = max(marginX, min(screenSize.width - marginX, x))
+        let clampedY = max(marginY, min(screenSize.height - marginY, y))
+        
+        return CGPoint(x: clampedX, y: clampedY)
+    }
+    
+    // 辅助函数：两点间线性插值
+    private func interpolatePoints(from start: CGPoint, to end: CGPoint, t: CGFloat) -> CGPoint {
+        let x = start.x + (end.x - start.x) * t
+        let y = start.y + (end.y - start.y) * t
+        return CGPoint(x: x, y: y)
+    }
+    
     // 对轨迹数据进行合适的采样
     private func sampleTrajectoryPoints() -> [CGPoint] {
         let allPoints = trajectoryResults.trajectoryPoints
@@ -288,7 +385,8 @@ struct TrajectoryComparisonView_Previews: PreviewProvider {
             maxError: 120.0,
             minError: 10.0,
             totalDuration: 30.0,
-            coveragePercentage: 0.8
+            coveragePercentage: 0.8,
+            trajectoryType: .figure8
         )
         
         TrajectoryComparisonView(
