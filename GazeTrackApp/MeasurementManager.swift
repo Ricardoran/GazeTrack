@@ -4,7 +4,7 @@ import ARKit
 // 轨迹测量类型
 enum TrajectoryType {
     case figure8    // 8字形轨迹
-    case edgeCoverage   // 边缘覆盖轨迹
+    case sinusoidalTrajectory   // 正弦函数轨迹
 }
 
 // 测量数据结构
@@ -87,7 +87,7 @@ class MeasurementManager: ObservableObject {
     // 测量完成后的回调
     var onMeasurementCompleted: (() -> Void)?
     
-    // 轨迹测量相关属性（支持8字形和边缘覆盖）
+    // 轨迹测量相关属性（支持8字形和正弦函数轨迹）
     @Published var isTrajectoryMeasuring: Bool = false
     @Published var trajectoryMeasurementCompleted: Bool = false
     @Published var trajectoryResults: TrajectoryMeasurementResult?
@@ -117,8 +117,8 @@ class MeasurementManager: ObservableObject {
         switch currentTrajectoryType {
         case .figure8:
             return 30.0  // 8字测量30秒
-        case .edgeCoverage:
-            return 45.0  // 边缘测量45秒
+        case .sinusoidalTrajectory:
+            return 45.0  // 正弦函数轨迹测量45秒
         }
     }
     
@@ -257,10 +257,10 @@ class MeasurementManager: ObservableObject {
         measurementStartTime = nil
     }
     
-    // MARK: - 8字形轨迹测量功能
+    // MARK: - 轨迹测量功能（8字形和正弦函数轨迹）
     
-    // 生成基于正弦波的边缘覆盖轨迹（带反向传播）
-    private func generateEdgeCoveragePath(at progress: Float) -> CGPoint {
+    // 生成基于正弦波的正弦函数轨迹（带反向传播）
+    private func generateSinusoidalTrajectoryPath(at progress: Float) -> CGPoint {
         let frameSize = Device.frameSize
         
         // 计算安全边距（考虑灵动岛和home indicator）
@@ -398,9 +398,9 @@ class MeasurementManager: ObservableObject {
         startTrajectoryMeasurement(type: .figure8)
     }
     
-    // 开始边缘覆盖轨迹测量
-    func startEdgeCoverageMeasurement() {
-        startTrajectoryMeasurement(type: .edgeCoverage)
+    // 开始正弦函数轨迹测量
+    func startSinusoidalTrajectoryMeasurement() {
+        startTrajectoryMeasurement(type: .sinusoidalTrajectory)
     }
     
     // 通用轨迹测量开始方法
@@ -436,7 +436,7 @@ class MeasurementManager: ObservableObject {
         showTrajectoryCountdown = true
         trajectoryCountdownValue = 3
         
-        let measurementType = currentTrajectoryType == .figure8 ? "8字测量" : "边缘测量"
+        let measurementType = currentTrajectoryType == .figure8 ? "8字测量" : "正弦函数轨迹测量"
         print("开始\(measurementType)倒计时...")
         
         trajectoryCountdownTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
@@ -463,7 +463,7 @@ class MeasurementManager: ObservableObject {
         trajectoryStartTime = Date()
         showTrajectoryPoint = true
         
-        let measurementType = currentTrajectoryType == .figure8 ? "8字测量" : "边缘测量"
+        let measurementType = currentTrajectoryType == .figure8 ? "8字测量" : "正弦函数轨迹测量"
         print("倒计时结束，开始\(measurementType)，总时长: \(trajectoryDuration)秒")
         
         // 启动定时器，每16ms更新一次（约60fps）
@@ -489,8 +489,8 @@ class MeasurementManager: ObservableObject {
         switch currentTrajectoryType {
         case .figure8:
             currentTrajectoryPoint = generate8ShapePath(at: trajectoryProgress)
-        case .edgeCoverage:
-            currentTrajectoryPoint = generateEdgeCoveragePath(at: trajectoryProgress)
+        case .sinusoidalTrajectory:
+            currentTrajectoryPoint = generateSinusoidalTrajectoryPath(at: trajectoryProgress)
         }
     }
     
@@ -522,7 +522,7 @@ class MeasurementManager: ObservableObject {
         
         #if DEBUG
         if trajectoryMeasurementPoints.count % 60 == 0 {  // 每秒打印一次
-            let measurementType = currentTrajectoryType == .figure8 ? "8字测量" : "边缘测量"
+            let measurementType = currentTrajectoryType == .figure8 ? "8字测量" : "正弦函数轨迹测量"
             print("\(measurementType)进度: \(Int(trajectoryProgress * 100))%, 当前误差: \(String(format: "%.1f", error))pt, 距离: \(String(format: "%.1f", eyeToScreenDistance))cm, 已采集: \(trajectoryMeasurementPoints.count)点")
         }
         #endif
@@ -568,7 +568,7 @@ class MeasurementManager: ObservableObject {
                 trajectoryType: currentTrajectoryType
             )
             
-            let measurementType = currentTrajectoryType == .figure8 ? "8字测量" : "边缘测量"
+            let measurementType = currentTrajectoryType == .figure8 ? "8字测量" : "正弦函数轨迹测量"
             print("\(measurementType)完成！")
             print("- 平均误差: \(String(format: "%.1f", avgError))pt")
             print("- 最大误差: \(String(format: "%.1f", maxError))pt")
@@ -582,7 +582,7 @@ class MeasurementManager: ObservableObject {
             // 自动关闭gaze track以节省能耗
             onMeasurementCompleted?()
         } else {
-            let measurementType = currentTrajectoryType == .figure8 ? "8字测量" : "边缘测量"
+            let measurementType = currentTrajectoryType == .figure8 ? "8字测量" : "正弦函数轨迹测量"
             print("\(measurementType)失败：没有收集到数据")
         }
     }

@@ -263,14 +263,14 @@ struct ContentView: View {
                         .cornerRadius(10)
                         .disabled(measurementManager.isMeasuring) // 静态测量时禁用
                         
-                        // 边缘测量按钮
-                        Button("边缘测量") {
-                            // 启动边缘测量前先确保眼动追踪处于活跃状态
+                        // 正弦函数轨迹测量按钮
+                        Button("正弦函数轨迹测量") {
+                            // 启动正弦函数轨迹测量前先确保眼动追踪处于活跃状态
                             if !eyeGazeActive {
                                 eyeGazeActive = true
-                                print("自动启动眼动追踪以支持边缘测量")
+                                print("自动启动眼动追踪以支持正弦函数轨迹测量")
                             }
-                            measurementManager.startEdgeCoverageMeasurement()
+                            measurementManager.startSinusoidalTrajectoryMeasurement()
                         }
                         .font(.headline)
                         .foregroundColor(.white)
@@ -464,7 +464,7 @@ struct ContentView: View {
                         Spacer()
                         VStack(spacing: 10) {
                             // 根据轨迹类型显示不同标题
-                            Text(measurementManager.currentTrajectoryType == .figure8 ? "8字测量" : "边缘测量")
+                            Text(measurementManager.currentTrajectoryType == .figure8 ? "8字测量" : "正弦函数轨迹测量")
                                 .font(.headline)
                                 .foregroundColor(.white)
                                 .fontWeight(.bold)
@@ -502,7 +502,7 @@ struct ContentView: View {
                     ScrollView {
                         VStack(spacing: 20) {
                             // 根据轨迹类型显示不同标题
-                            Text(results.trajectoryType == .figure8 ? "8字测量结果" : "边缘测量结果")
+                            Text(results.trajectoryType == .figure8 ? "8字测量结果" : "正弦函数轨迹测量结果")
                                 .font(.title)
                                 .fontWeight(.bold)
                                 .foregroundColor(.white)
@@ -617,7 +617,7 @@ struct ContentView: View {
             if measurementManager.showTrajectoryCountdown {
                 VStack(spacing: 20) {
                     // 根据轨迹类型显示不同标题
-                    Text(measurementManager.currentTrajectoryType == .figure8 ? "8字测量" : "边缘测量")
+                    Text(measurementManager.currentTrajectoryType == .figure8 ? "8字测量" : "正弦函数轨迹测量")
                         .font(.title)
                         .foregroundColor(.white)
                         .fontWeight(.bold)

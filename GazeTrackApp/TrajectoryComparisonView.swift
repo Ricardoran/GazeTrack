@@ -206,8 +206,8 @@ struct TrajectoryComparisonView: View {
         switch trajectoryResults.trajectoryType {
         case .figure8:
             return generateFigure8Trajectory()
-        case .edgeCoverage:
-            return generateEdgeCoverageTrajectory()
+        case .sinusoidalTrajectory:
+            return generateSinusoidalTrajectory()
         }
     }
     
@@ -260,21 +260,21 @@ struct TrajectoryComparisonView: View {
         return points
     }
     
-    // 生成边缘覆盖轨迹
-    private func generateEdgeCoverageTrajectory() -> [CGPoint] {
+    // 生成正弦函数轨迹
+    private func generateSinusoidalTrajectory() -> [CGPoint] {
         var points: [CGPoint] = []
         let totalPoints = 200
         
         for i in 0...totalPoints {
             let progress = Float(i) / Float(totalPoints)
-            points.append(generateEdgeCoveragePoint(at: progress))
+            points.append(generateSinusoidalTrajectoryPoint(at: progress))
         }
         
         return points
     }
     
-    // 生成基于正弦波的边缘覆盖轨迹（带反向传播，与MeasurementManager保持一致）
-    private func generateEdgeCoveragePoint(at progress: Float) -> CGPoint {
+    // 生成基于正弦波的正弦函数轨迹（带反向传播，与MeasurementManager保持一致）
+    private func generateSinusoidalTrajectoryPoint(at progress: Float) -> CGPoint {
         // 计算安全边距（考虑灵动岛和home indicator）
         let marginX: CGFloat = 30.0
         let marginY: CGFloat = 60.0  // 增加Y边距以避开灵动岛和home indicator
