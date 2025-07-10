@@ -6,23 +6,60 @@
 
 import SwiftUI
 import UIKit
+import AVFoundation
+import ARKit
 
 struct Device {
+    static var currentOrientation: UIInterfaceOrientation {
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+            return scene.interfaceOrientation
+        }
+        return .portrait
+    }
+    
+    static var isLandscape: Bool {
+        let orientation = currentOrientation
+        return orientation == .landscapeLeft || orientation == .landscapeRight
+    }
+    
+    static var isPortrait: Bool {
+        let orientation = currentOrientation
+        return orientation == .portrait || orientation == .portraitUpsideDown
+    }
+    
+    // 基于摄像头位置的判断（更直观）
+    static var isCameraOnLeft: Bool {
+        return currentOrientation == .landscapeRight
+    }
+    
+    static var isCameraOnRight: Bool {
+        return currentOrientation == .landscapeLeft
+    }
+    
+    // MARK: - TrueDepth Camera Support Detection
+    static var supportsTrueDepthCamera: Bool {
+        let discoverySession = AVCaptureDevice.DiscoverySession(
+            deviceTypes: [.builtInTrueDepthCamera],
+            mediaType: .video,
+            position: .front
+        )
+        return !discoverySession.devices.isEmpty
+    }
+    
+    
+    // Screen Size Calculations
     static var screenSize: CGSize {
         
+        // 这里的screen size是定死的，不会受屏幕旋转而改变
         let screenWidthPixel: CGFloat = UIScreen.main.nativeBounds.width
         let screenHeightPixel: CGFloat = UIScreen.main.nativeBounds.height
         
         let (ppi, screenWidthInMeter, screenHeightInMeter) = {
             // 默认使用 iPhone 配置（如 iPhone 14 Pro）
             return (460.0, 0.0651318, 0.1412057)
+            // return (264.0, 0.159778, 0.229921)
         }()
 
-//         Updated PPI for iPad air 4
-//         let ppi: CGFloat = 264
-//         // actual screen size in meters for ipad air 4 10.9 inch
-//         let screenWidthInMeter = 0.159778
-//         let screenHeightInMeter = 0.229921
 
         let a_ratio = (screenWidthPixel / ppi) / screenWidthInMeter
         let b_ratio = (screenHeightPixel / ppi) / screenHeightInMeter
@@ -31,51 +68,99 @@ struct Device {
                       height: (screenHeightPixel / ppi) / b_ratio)
     }
     
-    // 添加打印屏幕尺寸的函数
-    static func printScreenSize() {
-        print("设备尺寸", Device.screenSize)
-        print("屏幕分辨率:",UIScreen.main.nativeBounds.width, UIScreen.main.nativeBounds.height)
-        print("屏幕尺寸: 宽度 = \(UIScreen.main.bounds.size.width), 高度 = \(UIScreen.main.bounds.size.height)")
-        print("宽度范围: \(Ranges.widthRange)", "高度范围: \(Ranges.heightRange)")
-        print("Safe Frame尺寸: \(safeFrameSize)")
-        print("UIScreen.main.scale", UIScreen.main.scale)
+    // 方向感知的逻辑屏幕尺寸（用于坐标计算）
+    static var orientationAwareLogicalSize: CGSize {
+        let bounds = UIScreen.main.bounds.size
+        return bounds
     }
     
-    // 竖屏模式下的屏幕尺寸
+    // 方向感知的物理屏幕尺寸（物理尺寸，根据方向调整）
+    static var orientationAwareScreenSize: CGSize {
+        let baseSize = screenSize
+        return isLandscape ?
+            CGSize(width: baseSize.height, height: baseSize.width) : 
+            baseSize
+    }
+    
+    // 方向感知的屏幕尺寸（去除安全区域）
     static var frameSize: CGSize {
         let safeAreaInsets = getSafeAreaInsets()
-        return CGSize(width: UIScreen.main.bounds.size.width,
-                      height: UIScreen.main.bounds.size.height - safeAreaInsets.top - safeAreaInsets.bottom)
+        let bounds = UIScreen.main.bounds.size
+        return CGSize(width: bounds.width - safeAreaInsets.left - safeAreaInsets.right,
+                      height: bounds.height - safeAreaInsets.top - safeAreaInsets.bottom)
+    }
+    
+    // 将屏幕上的点距离转换为厘米
+    static func pointsToCentimeters(_ points: CGFloat) -> Double {
+        // 获取设备的scale factor (1x, 2x, 3x等)
+        let scale = UIScreen.main.scale
+        
+        // 将iOS点转换为实际像素
+        let pixels = Double(points) * Double(scale)
+        
+        // iPhone 14 Pro 配置
+        let ppi: Double = 460.0  // 像素每英寸
+        
+        // 直接使用PPI转换：像素 → 英寸 → 厘米
+        let inches = pixels / ppi
+        let centimeters = inches * 2.54
+        
+        return centimeters
+    }
+    
+    // 将厘米误差转换为角度误差（度）
+    static func centimetersToDegrees(_ centimeters: Double, eyeToScreenDistance: Double) -> Double {
+        // 使用眼动追踪研究的标准公式计算角度误差
+        // θ = arctan(distance_on_screen / viewing_distance) × (180/π)
+        // 参考: PMC6165570, SR Research等权威眼动追踪研究
+        let angleRadians = atan(centimeters / eyeToScreenDistance)
+        let angleDegrees = angleRadians * (180.0 / Double.pi)
+        
+        return angleDegrees
+    }
+    
+    // 预估默认的眼睛到屏幕距离（厘米）
+    static var defaultEyeToScreenDistance: Double {
+        // 根据研究，人眼到手机屏幕的典型距离约为25-40厘米
+        // 我们使用30厘米作为默认值
+        return 30.0
     }
     
     // 获取安全区域的尺寸
     static func getSafeAreaInsets() -> UIEdgeInsets {
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let window = windowScene.windows.first {
-            return window.safeAreaInsets
+            let insets = window.safeAreaInsets
+            
+            #if DEBUG
+            if arc4random_uniform(300) == 0 {
+                print("=== Safe Area 调试信息 ===")
+                print("设备方向:", isLandscape ? "横屏" : "竖屏")
+                print("设备名称: \(UIDevice.current.name)")
+                print("设备型号: \(UIDevice.current.model)")
+                print("系统版本: \(UIDevice.current.systemVersion)")
+                print("TrueDepth摄像头支持:", Device.supportsTrueDepthCamera ? "支持" : "不支持")
+                print("ARFaceTrackingConfiguration支持:", ARFaceTrackingConfiguration.isSupported ? "支持" : "不支持")
+                print("=======================")
+            }
+            #endif            
+            return insets
         }
         return UIEdgeInsets.zero
     }
     
-    // 获取考虑安全区域的屏幕尺寸
-    static var safeFrameSize: CGSize {
-        let safeAreaInsets = getSafeAreaInsets()
-        return CGSize(
-            width: UIScreen.main.bounds.size.width - safeAreaInsets.left - safeAreaInsets.right,
-            height: UIScreen.main.bounds.size.height - safeAreaInsets.top - safeAreaInsets.bottom
-        )
-    }
+
 }
 
 struct Ranges {
-    // 竖屏模式下的宽度范围
+    // 方向感知的宽度范围
     static var widthRange: ClosedRange<CGFloat> {
-        let safeAreaInsets = Device.getSafeAreaInsets()
-        return (safeAreaInsets.left...(UIScreen.main.bounds.width - safeAreaInsets.right))
+            return 0.0...Device.frameSize.width
     }
-    // 竖屏模式下的高度范围
+    
+    // 方向感知的高度范围
     static var heightRange: ClosedRange<CGFloat> {
-        return 0.0...Device.frameSize.height
+            return 0.0...Device.frameSize.height
     }
 }
 
@@ -89,4 +174,23 @@ extension CGFloat {
             return self
         }
     }
+}
+
+extension View {
+    func getRootViewController() -> UIViewController? {
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = scene.windows.first(where: { $0.isKeyWindow }) else { return nil }
+        return window.rootViewController
+    }
+}
+
+func showCameraSettingsAlert(presentingViewController: UIViewController) {
+    let alert = UIAlertController(title: "需要摄像头权限", message: "请在设置中开启摄像头权限以继续使用该功能。", preferredStyle: .alert)
+    alert.addAction(UIAlertAction(title: "取消", style: .cancel, handler: nil))
+    alert.addAction(UIAlertAction(title: "去设置", style: .default, handler: { _ in
+        if let appSettings = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(appSettings)
+        }
+    }))
+    presentingViewController.present(alert, animated: true, completion: nil)
 }
