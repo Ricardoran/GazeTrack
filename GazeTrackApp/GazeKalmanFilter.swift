@@ -38,6 +38,11 @@ class GazeKalmanFilter {
     private var lastBlinkLevel: Float = 0
     private var blinkRecoveryCounter: Int = 0
     
+    
+    // 边缘检测
+    private var screenBounds: CGRect = UIScreen.main.bounds
+    private let edgeThreshold: CGFloat = 50.0
+    
     // 配置参数
     private let historySize = 10
     private let maxRecoveryFrames = 10 // 眨眼后的恢复帧数
@@ -66,6 +71,12 @@ class GazeKalmanFilter {
     
     /// 主要更新方法，包含眨眼感知处理
     func updateWithBlinkAwareness(measurement: CGPoint, deltaTime: Float, blinkLevel: Float) -> CGPoint {
+        // 为了向后兼容，调用增强版本
+        return updateEnhanced(measurement: measurement, deltaTime: deltaTime, blinkLevel: blinkLevel, smoothingIntensity: 0.6)
+    }
+    
+    /// 增强版更新方法，支持边缘自适应滤波
+    func updateEnhanced(measurement: CGPoint, deltaTime: Float, blinkLevel: Float, smoothingIntensity: Float) -> CGPoint {
         
         // 如果还未初始化，使用测量值初始化
         if !isInitialized {
@@ -74,7 +85,10 @@ class GazeKalmanFilter {
         
         updateCount += 1
         
-        // 检测异常数据
+        // 1. 边缘检测
+        let isNearEdge = detectNearEdge(point: measurement)
+        
+        // 2. 检测异常数据
         let isAnomalous = detectAnomalousData(newPoint: measurement, deltaTime: deltaTime)
         
         // 检测眨眼状态变化
@@ -93,6 +107,14 @@ class GazeKalmanFilter {
         
         var filteredPoint: CGPoint
         
+        // 计算自适应噪声调整
+        var adaptedMeasurementNoise = measurementNoise
+        
+        // 边缘区域轻微增加滤波（保守策略）
+        if isNearEdge {
+            adaptedMeasurementNoise *= 1.3
+        }
+        
         // 决策逻辑：是否使用测量值
         if isAnomalous && (isBlinkingIntensely || isInRecovery) {
             // 眨眼期间的异常数据：完全使用预测
@@ -101,34 +123,34 @@ class GazeKalmanFilter {
             
             #if DEBUG
             if arc4random_uniform(30) == 0 {
-                print("🚫 [BLINK-AWARE] 眨眼异常数据被拒绝，使用纯预测")
+                print("🚫 [ENHANCED] 眨眼异常数据被拒绝，使用纯预测")
             }
             #endif
             
         } else if isBlinkingIntensely {
             // 强烈眨眼：大幅降低对测量的信任
-            let inflatedNoise = measurementNoise * 20.0
+            let inflatedNoise = adaptedMeasurementNoise * 15.0  // 从20.0减少到15.0
             filteredPoint = updateWithAdjustedNoise(measurement: measurement, deltaTime: deltaTime, tempMeasurementNoise: inflatedNoise)
             
             #if DEBUG
             if arc4random_uniform(60) == 0 {
-                print("👁️ [BLINK-AWARE] 强烈眨眼模式，测量噪声x20")
+                print("👁️ [ENHANCED] 强烈眨眼模式，边缘:\(isNearEdge)")
             }
             #endif
             
         } else if isBlinkingPartially || isInRecovery {
             // 轻微眨眼或恢复期：适度降低对测量的信任
-            let adjustedNoise = measurementNoise * (isInRecovery ? 8.0 : 5.0)
+            let adjustedNoise = adaptedMeasurementNoise * (isInRecovery ? 6.0 : 4.0)  // 减少强度
             filteredPoint = updateWithAdjustedNoise(measurement: measurement, deltaTime: deltaTime, tempMeasurementNoise: adjustedNoise)
             
         } else if isAnomalous {
             // 非眨眼期间的异常数据：适度增加噪声但仍使用
-            let adjustedNoise = measurementNoise * 3.0
+            let adjustedNoise = adaptedMeasurementNoise * 2.5
             filteredPoint = updateWithAdjustedNoise(measurement: measurement, deltaTime: deltaTime, tempMeasurementNoise: adjustedNoise)
             
         } else {
-            // 正常情况
-            filteredPoint = updateNormal(measurement: measurement, deltaTime: deltaTime)
+            // 正常情况，使用自适应噪声
+            filteredPoint = updateWithAdjustedNoise(measurement: measurement, deltaTime: deltaTime, tempMeasurementNoise: adaptedMeasurementNoise)
         }
         
         // 更新历史记录
@@ -296,6 +318,15 @@ class GazeKalmanFilter {
         return sqrt(vx * vx + vy * vy)
     }
     
+    
+    /// 简化的边缘检测
+    private func detectNearEdge(point: CGPoint) -> Bool {
+        return point.x < screenBounds.minX + edgeThreshold ||
+               point.x > screenBounds.maxX - edgeThreshold ||
+               point.y < screenBounds.minY + edgeThreshold ||
+               point.y > screenBounds.maxY - edgeThreshold
+    }
+    
     // MARK: - 公共接口
     
     func reset() {
@@ -310,8 +341,11 @@ class GazeKalmanFilter {
         velocityHistory.removeAll()
         previousGazePoint = nil
         
+        // 重置边缘检测状态
+        screenBounds = UIScreen.main.bounds
+        
         #if DEBUG
-        print("🔄 [BLINK-AWARE KALMAN] 滤波器已重置")
+        print("🔄 [ENHANCED KALMAN] 增强版滤波器已重置")
         #endif
     }
     
@@ -327,3 +361,4 @@ class GazeKalmanFilter {
         return updateCount > 0 ? Float(rejectedFrames) / Float(updateCount) : 0
     }
 }
+

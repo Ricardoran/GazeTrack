@@ -50,7 +50,7 @@ class CustomARView: ARView, ARSessionDelegate {
     var measurementManager: MeasurementManager
     @Binding var smoothingIntensity: Float
     
-    // 简化的眨眼感知Kalman滤波器
+    // 增强版Kalman滤波器（眨眼感知+边缘自适应）
     private var gazeKalmanFilter = GazeKalmanFilter()
     private var lastUpdateTime: TimeInterval = 0
     private var isSmoothing: Bool = false
@@ -333,7 +333,7 @@ class CustomARView: ARView, ARSessionDelegate {
             
             #if DEBUG
             if arc4random_uniform(100) == 0 {
-                print("🔄 [BLINK-AWARE SMOOTHING] Kalman滤波器重置")
+                print("🔄 [ENHANCED KALMAN] 增强版Kalman滤波器重置")
             }
             #endif
             
@@ -354,11 +354,12 @@ class CustomARView: ARView, ARSessionDelegate {
         let measurementNoise = baseMeasurementNoise + smoothingIntensity * 28.0
         gazeKalmanFilter.updateParameters(processNoise: processNoise, measurementNoise: measurementNoise)
         
-        // 使用眨眼感知的滤波器更新
-        let smoothedPoint = gazeKalmanFilter.updateWithBlinkAwareness(
+        // 使用增强版Kalman滤波器（包含眨眼感知+边缘自适应）
+        let smoothedPoint = gazeKalmanFilter.updateEnhanced(
             measurement: rawPoint,
             deltaTime: deltaTime,
-            blinkLevel: currentBlinkLevel
+            blinkLevel: currentBlinkLevel,
+            smoothingIntensity: smoothingIntensity
         )
         
         lastBlinkCheck = currentBlinkLevel
@@ -367,8 +368,7 @@ class CustomARView: ARView, ARSessionDelegate {
         #if DEBUG
         if arc4random_uniform(600) == 0 {
             let distance = sqrt(pow(smoothedPoint.x - rawPoint.x, 2) + pow(smoothedPoint.y - rawPoint.y, 2))
-            let rejectionRate = gazeKalmanFilter.rejectionRate * 100
-            print("🎯 [BLINK-AWARE] 平滑强度:\(String(format: "%.2f", smoothingIntensity)), 眨眼等级:\(String(format: "%.2f", currentBlinkLevel)), 距离差:\(String(format: "%.1f", distance))pt, 拒绝率:\(String(format: "%.1f", rejectionRate))%")
+            print("🎯 [ENHANCED KALMAN] 平滑强度:\(String(format: "%.2f", smoothingIntensity)), 眨眼等级:\(String(format: "%.2f", currentBlinkLevel)), 距离差:\(String(format: "%.1f", distance))pt")
         }
         #endif
         
@@ -394,14 +394,14 @@ class CustomARView: ARView, ARSessionDelegate {
         )
     }
     
-    /// 重置Kalman滤波器（在开始新的追踪会话时调用）
+    /// 重置增强版Kalman滤波器（在开始新的追踪会话时调用）
     func resetKalmanFilter() {
         gazeKalmanFilter.reset()
         lastUpdateTime = 0
         isSmoothing = false
         
         #if DEBUG
-        print("🔄 [SMOOTHING] Kalman滤波器手动重置")
+        print("🔄 [ENHANCED KALMAN] 增强版Kalman滤波器手动重置")
         #endif
     }
     
