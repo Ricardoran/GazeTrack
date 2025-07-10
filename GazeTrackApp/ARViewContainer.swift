@@ -228,15 +228,47 @@ class CustomARView: ARView, ARSessionDelegate {
         return focusPoint
     }
     func updateDetectGazePoint(faceAnchor: ARFaceAnchor){
-        let focusPoint=detectGazePoint(faceAnchor: faceAnchor)
+        let rawFocusPoint = detectGazePoint(faceAnchor: faceAnchor)
+        
+        // 在测量模式下也应用滤波器
+        let finalFocusPoint: CGPoint
+        if measurementManager.isMeasuring || measurementManager.isTrajectoryMeasuring {
+            finalFocusPoint = applyKalmanSmoothing(rawPoint: rawFocusPoint, faceAnchor: faceAnchor)
+            
+            #if DEBUG
+            if arc4random_uniform(300) == 0 {
+                let distance = sqrt(pow(finalFocusPoint.x - rawFocusPoint.x, 2) + pow(finalFocusPoint.y - rawFocusPoint.y, 2))
+                print("📏 [MEASUREMENT FILTER] 测量模式滤波: 距离差:\(String(format: "%.1f", distance))pt, 平滑:\(String(format: "%.0f", smoothingIntensity * 100))%")
+            }
+            #endif
+        } else {
+            finalFocusPoint = rawFocusPoint
+        }
+        
         DispatchQueue.main.async {
-            self.lookAtPoint = focusPoint
+            self.lookAtPoint = finalFocusPoint
         }
     }
     func updateDetectGazePointAfterCalibration(faceAnchor: ARFaceAnchor,overrideLookAtPoint: SIMD3<Float>){
-        let focusPoint=detectGazePointAfterCalibration(faceAnchor: faceAnchor,overrideLookAtPoint: overrideLookAtPoint)
+        let rawFocusPoint = detectGazePointAfterCalibration(faceAnchor: faceAnchor,overrideLookAtPoint: overrideLookAtPoint)
+        
+        // 在测量模式下也应用滤波器（校准后）
+        let finalFocusPoint: CGPoint
+        if measurementManager.isMeasuring || measurementManager.isTrajectoryMeasuring {
+            finalFocusPoint = applyKalmanSmoothing(rawPoint: rawFocusPoint, faceAnchor: faceAnchor)
+            
+            #if DEBUG
+            if arc4random_uniform(300) == 0 {
+                let distance = sqrt(pow(finalFocusPoint.x - rawFocusPoint.x, 2) + pow(finalFocusPoint.y - rawFocusPoint.y, 2))
+                print("📏 [MEASUREMENT FILTER CALIB] 校准后测量模式滤波: 距离差:\(String(format: "%.1f", distance))pt")
+            }
+            #endif
+        } else {
+            finalFocusPoint = rawFocusPoint
+        }
+        
         DispatchQueue.main.async {
-            self.lookAtPoint = focusPoint
+            self.lookAtPoint = finalFocusPoint
         }
     }
     

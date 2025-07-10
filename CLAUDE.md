@@ -48,10 +48,11 @@ All managers follow the `ObservableObject` pattern with `@Published` properties:
 - **Export/Visualization**: CSV export and trajectory visualization tools
 
 #### Measurement Mode  
-- **Point Accuracy Measurement**: 5-point precision testing
+- **Point Accuracy Measurement**: 5-point precision testing with real-time filtering
 - **8-Figure Trajectory**: Sinusoidal trajectory following for accuracy assessment
 - **Distance Tracking**: Eye-to-screen distance monitoring
 - **Angle Error Calculation**: Deviation analysis from expected trajectory
+- **Smoothing Control**: Adjustable filtering intensity (0-100%) for measurement accuracy
 
 #### Calibration Mode
 - **5-Point Calibration**: Center + 4 corners gaussian-weighted correction
@@ -86,30 +87,30 @@ Complex transformations from face tracking coordinates to screen coordinates:
 
 ### Advanced Filtering System
 
-#### Enhanced Gaze Filter (`EnhancedGazeFilter.swift`)
-Sophisticated filtering system addressing two critical challenges:
+#### Enhanced Gaze Filter (`GazeKalmanFilter.swift`)
+Sophisticated filtering system addressing critical eye tracking challenges:
 
-1. **Position-Adaptive Filtering**:
-   - Dynamic parameter adjustment based on gaze point location
-   - Higher filtering intensity near screen edges and corners
-   - Compensates for non-linear coordinate mapping accuracy
+1. **Blink-Aware Processing**:
+   - Multi-level blink detection with specialized handling
+   - Recovery period management after blink events
+   - Anomaly rejection during unstable periods
 
-2. **Head Pose Stabilization**:
-   - Tracks head movement history (15-frame window)
-   - Detects micro head movements vs intentional gaze shifts
-   - Compensates for head pose changes to maintain gaze stability
+2. **Edge-Adaptive Filtering**:
+   - Dynamic parameter adjustment near screen boundaries
+   - Compensates for reduced accuracy in edge regions
+   - Conservative 1.3x noise increase for boundary areas
 
 #### Filtering Parameters
-- **Center Region**: 30% of screen diagonal, highest accuracy
-- **Edge Boost Factor**: 2x filtering intensity near edges
-- **Corner Boost Factor**: 3x filtering intensity in corners
-- **Head Stabilization Threshold**: 0.02 units for micro-movement detection
+- **Edge Detection**: 50px boundary threshold for near-edge detection
+- **Edge Boost Factor**: 1.3x filtering intensity near screen edges
+- **Blink Recovery**: 10-frame stabilization period after blink detection
 
 #### Blink-Aware Processing
 - **Multi-level blink detection**: Partial (>0.5) and intense (>0.8) blink levels
-- **Adaptive noise adjustment**: 10x measurement noise during intense blinks
+- **Adaptive noise adjustment**: 15x measurement noise during intense blinks
 - **Recovery period management**: 10-frame stabilization after blink ends
 - **Anomaly rejection**: Context-aware during blink periods only
+- **Cross-mode support**: Active in both gaze tracking and measurement modes
 
 ## File Structure Patterns
 

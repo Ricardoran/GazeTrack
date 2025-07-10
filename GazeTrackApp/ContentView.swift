@@ -388,8 +388,8 @@ struct ContentView: View {
                     .padding(.vertical, 5)
                 }
                 
-                // 平滑强度控制滑块 - 在眼动追踪模式下显示
-                if mode == .gazeTrack {
+                // 平滑强度控制滑块 - 在眼动追踪和测量模式下显示
+                if mode == .gazeTrack || mode == .measurement {
                     VStack(alignment: .leading, spacing: 5) {
                         HStack {
                             Text("平滑强度: \(Int(smoothingIntensity * 100))%")

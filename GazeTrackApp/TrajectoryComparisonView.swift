@@ -132,63 +132,84 @@ struct TrajectoryComparisonView: View {
                             }
                         }
                         
-                        // 主要测量结果
-                        VStack(spacing: 12) {
-                            // 距离误差
-                            VStack(spacing: 4) {
-                                Text("平均距离误差")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                Text("\(String(format: "%.4f", trajectoryResults.meanEuclideanErrorInCM)) cm")
-                                    .font(.title3)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.black)
-                            }
-                            .padding(.vertical, 8)
-                            
-                            // 角度误差
-                            VStack(spacing: 4) {
-                                Text("平均角度误差")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                Text("\(String(format: "%.4f", trajectoryResults.meanEuclideanErrorInDegrees))°")
-                                    .font(.title3)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.blue)
-                            }
-                            .padding(.vertical, 8)
-                            
-                            // 测量信息
-                            HStack(spacing: 30) {
-                                VStack(spacing: 4) {
-                                    Text("数据点数")
+                        // 测量结果 - 2x2网格布局
+                        VStack(spacing: 16) {
+                            // 第一行：距离误差 和 角度误差
+                            HStack(spacing: 20) {
+                                // 距离误差
+                                VStack(spacing: 8) {
+                                    Text("平均距离误差")
                                         .font(.caption)
                                         .foregroundColor(.gray)
-                                    Text("\(trajectoryResults.dataSize)")
-                                        .font(.subheadline)
+                                        .multilineTextAlignment(.center)
+                                    Text("\(String(format: "%.4f", trajectoryResults.meanEuclideanErrorInCM)) cm")
+                                        .font(.title3)
                                         .fontWeight(.bold)
                                         .foregroundColor(.black)
+                                        .multilineTextAlignment(.center)
                                 }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .padding(.horizontal, 8)
+                                .background(Color.red.opacity(0.1))
+                                .cornerRadius(12)
                                 
-                                VStack(spacing: 4) {
-                                    Text("平均距离")
+                                // 角度误差
+                                VStack(spacing: 8) {
+                                    Text("平均角度误差")
                                         .font(.caption)
                                         .foregroundColor(.gray)
+                                        .multilineTextAlignment(.center)
+                                    Text("\(String(format: "%.4f", trajectoryResults.meanEuclideanErrorInDegrees))°")
+                                        .font(.title3)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.blue)
+                                        .multilineTextAlignment(.center)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .padding(.horizontal, 8)
+                                .background(Color.blue.opacity(0.1))
+                                .cornerRadius(12)
+                            }
+                            
+                            // 第二行：采样点数 和 眼睛到屏幕距离
+                            HStack(spacing: 20) {
+                                // 采样点数
+                                VStack(spacing: 8) {
+                                    Text("采样点数")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                        .multilineTextAlignment(.center)
+                                    Text("\(sampleTrajectoryPoints().count)")
+                                        .font(.title3)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.green)
+                                        .multilineTextAlignment(.center)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .padding(.horizontal, 8)
+                                .background(Color.green.opacity(0.1))
+                                .cornerRadius(12)
+                                
+                                // 眼睛到屏幕距离
+                                VStack(spacing: 8) {
+                                    Text("眼睛到屏幕距离")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                        .multilineTextAlignment(.center)
                                     Text("\(String(format: "%.1f", trajectoryResults.averageEyeToScreenDistance)) cm")
-                                        .font(.subheadline)
+                                        .font(.title3)
                                         .fontWeight(.bold)
                                         .foregroundColor(.purple)
+                                        .multilineTextAlignment(.center)
                                 }
-                                
-                                VStack(spacing: 4) {
-                                    Text("测量时长")
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
-                                    Text("\(String(format: "%.1f", trajectoryResults.totalDuration)) 秒")
-                                        .font(.subheadline)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.orange)
-                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .padding(.horizontal, 8)
+                                .background(Color.purple.opacity(0.1))
+                                .cornerRadius(12)
                             }
                         }
                     }
