@@ -42,35 +42,41 @@ All managers follow the `ObservableObject` pattern with `@Published` properties:
 ### Application Modes
 
 #### Gaze Track Mode
-- Primary eye tracking with real-time smoothing controls
-- **Smoothing Intensity**: 0-100% adjustable via slider (default: 60%)
+- Primary eye tracking with optimized simple smoothing
+- **Simple Smoothing**: Sliding window average algorithm (0-50 points, default: 30)
+- **Real-time Control**: Adjustable window size slider for response vs stability balance  
 - **Video Overlay**: Optional video playback with opacity control
 - **Export/Visualization**: CSV export and trajectory visualization tools
 
 #### Measurement Mode  
-- **Point Accuracy Measurement**: 5-point precision testing with real-time filtering
+- **Point Accuracy Measurement**: 5-point precision testing with simple smoothing
 - **8-Figure Trajectory**: Sinusoidal trajectory following for accuracy assessment
 - **Distance Tracking**: Eye-to-screen distance monitoring
 - **Angle Error Calculation**: Deviation analysis from expected trajectory
-- **Smoothing Control**: Adjustable filtering intensity (0-100%) for measurement accuracy
+- **ME (Mean Euclidean) Display**: Results shown in centimeters and visual accuracy analysis
 
 #### Calibration Mode
-- **5-Point Calibration**: Center + 4 corners gaussian-weighted correction
-- **Adaptive Collection**: 3-second data collection per point with validation
-- **Correction Vectors**: Spatial interpolation for accuracy improvement
+- **Enhanced 5-Point Calibration**: Center + 4 corners with dual-phase collection
+- **Adaptive Collection**: 3-second initial data collection + 3-second alignment verification
+- **Auto-Validation**: 50pt proximity check for calibration point alignment
+- **Gaussian-Weighted Correction**: Spatial interpolation using all calibration vectors
 
 ### Core Views
 - **ContentView.swift**: Main UI container with all controls and overlays
 - **ARViewContainer.swift**: UIViewRepresentable wrapper for CustomARView
 - **CustomARView**: ARView subclass handling face tracking and coordinate transformations
+- **SimpleGazeSmoothing.swift**: Lightweight sliding window smoothing algorithm
+- **TrajectoryComparisonView.swift**: Visual comparison of target vs actual gaze trajectories
 
 ### Data Flow Architecture
 ```
-ARKit Face Tracking → ARViewContainer → Manager Classes → UI Updates
+ARKit Face Tracking → ARViewContainer → SimpleGazeSmoothing → Manager Classes → UI Updates
                                     ↓
                               CalibrationManager (calibration mode)
                                     ↓
                               TrajectoryManager (recording mode)
+                                    ↓
+                              MeasurementManager (8-figure analysis)
                                     ↓
                               CSV Export via ActivityViewController
 ```
@@ -85,41 +91,49 @@ Complex transformations from face tracking coordinates to screen coordinates:
 - **Edge clamping effects**: Raw coordinates beyond screen bounds are clamped, causing precision loss
 - **Device orientation handling**: Different transform matrices for portrait/landscape modes
 
-### Advanced Filtering System
+### Simple Smoothing System
 
-#### Enhanced Gaze Filter (`GazeKalmanFilter.swift`)
-Sophisticated filtering system addressing critical eye tracking challenges:
+#### SimpleGazeSmoothing Algorithm
+Lightweight and efficient smoothing system optimized for real-time performance:
 
-1. **Blink-Aware Processing**:
-   - Multi-level blink detection with specialized handling
-   - Recovery period management after blink events
-   - Anomaly rejection during unstable periods
+1. **Sliding Window Average**:
+   - Maintains configurable window of recent gaze points (default: 30 points)
+   - Weighted average with higher weight for newer points
+   - Dynamic window size adjustment (0-50 points range)
 
-2. **Edge-Adaptive Filtering**:
-   - Dynamic parameter adjustment near screen boundaries
-   - Compensates for reduced accuracy in edge regions
-   - Conservative 1.3x noise increase for boundary areas
+2. **Performance Optimizations**:
+   - Minimal computational overhead (~0.02ms per frame)
+   - No complex state management or matrix operations
+   - Linear memory usage proportional to window size
 
-#### Filtering Parameters
-- **Edge Detection**: 50px boundary threshold for near-edge detection
-- **Edge Boost Factor**: 1.3x filtering intensity near screen edges
-- **Blink Recovery**: 10-frame stabilization period after blink detection
+#### Smoothing Parameters
+- **Window Size**: 0-50 points (0 = no smoothing, 50 = maximum smoothing)
+- **Default Setting**: 30 points (~0.5 second delay at 60fps)
+- **Response Time**: 0.08s (5 points) to 0.83s (50 points)
+- **Weighted Average**: Linear weighting favoring recent points
 
-#### Blink-Aware Processing
-- **Multi-level blink detection**: Partial (>0.5) and intense (>0.8) blink levels
-- **Adaptive noise adjustment**: 15x measurement noise during intense blinks
-- **Recovery period management**: 10-frame stabilization after blink ends
-- **Anomaly rejection**: Context-aware during blink periods only
-- **Cross-mode support**: Active in both gaze tracking and measurement modes
+#### Performance Characteristics
+- **Low Latency**: Significantly faster than Kalman filtering
+- **Predictable Behavior**: Simple algorithm with transparent results
+- **User Control**: Real-time adjustable via slider for different use cases
+- **Memory Efficient**: Fixed memory footprint, no growing state
 
 ## File Structure Patterns
 
 ### Main Source Directory (`GazeTrackApp/`)
 - **App entry**: `GazeTrackAppApp.swift`
 - **Managers**: Individual manager classes for each major feature
+- **Core Components**: `SimpleGazeSmoothing.swift`, `TrajectoryComparisonView.swift`
 - **Utils**: `Utils.swift` contains extensions and utility functions
 - **Assets**: Icons and resources in `Assets.xcassets/`
 - **Sample content**: `.mov` files for video testing
+
+### Key Files
+- `CalibrationManager.swift`: Enhanced dual-phase calibration with auto-validation
+- `MeasurementManager.swift`: 8-figure trajectory measurement with ME error analysis
+- `SimpleGazeSmoothing.swift`: Lightweight sliding window smoothing algorithm
+- `ContentView.swift`: Main UI with simplified smoothing controls
+- `ARViewContainer.swift`: Core AR functionality with integrated smoothing
 
 ### Project Configuration
 - **Bundle ID**: `haoranzh.GazeTrackApp`
@@ -159,13 +173,21 @@ Sophisticated filtering system addressing critical eye tracking challenges:
 - **Lighting Conditions**: Poor lighting degrades face tracking quality and gaze accuracy
 
 ### Performance Considerations
-- **60Hz Processing**: Real-time filtering must complete within 16ms frame budget
-- **Filter Complexity**: Position-adaptive and head stabilization adds computational overhead
-- **Memory Usage**: Head pose history and gaze trajectory storage for long sessions
-- **Battery Impact**: Continuous ARKit face tracking is battery-intensive
+- **60Hz Processing**: Simple smoothing completes well within 16ms frame budget
+- **Minimal Overhead**: Sliding window average requires only basic arithmetic operations
+- **Memory Usage**: Fixed memory footprint proportional to window size (max 50 points)
+- **Battery Impact**: Reduced computational load compared to complex filtering
+- **Real-time Response**: Dynamic window adjustment without performance penalty
 
 ### Development Best Practices
-- **Filter Parameter Tuning**: Smoothing intensity must balance responsiveness vs stability
-- **Debug Logging**: Comprehensive logging for filter performance and anomaly detection
-- **Graceful Degradation**: Fallback modes when advanced filtering fails
-- **User Feedback**: Visual indicators for tracking quality and calibration status
+- **Smoothing Parameter Selection**: Window size balances response time vs stability
+- **UI Responsiveness**: Real-time slider control for immediate user feedback
+- **Debug Logging**: Simple distance-based smoothing effectiveness metrics
+- **Graceful Performance**: Consistent behavior across all devices and conditions
+- **User Control**: Direct window size control for different use case requirements
+
+### Calibration System Enhancements
+- **Dual-Phase Collection**: Initial 3s data gathering + 3s alignment verification
+- **Auto-Validation**: 50pt proximity check ensures accurate calibration points
+- **Enhanced Feedback**: Visual and timing cues guide user through calibration process
+- **Robust Error Handling**: Automatic retry for insufficient or misaligned data

@@ -5,24 +5,27 @@ GazeTrackApp is an iOS application that uses ARKit and RealityKit to track eye g
 The app utilizes the front-facing TrueDepth camera system on compatible iOS devices to track eye movements with high precision. The collected data can be valuable for research in user experience, attention studies, cognitive science, and accessibility.
 
 ## Features
-- Real-time Eye Tracking : Tracks where the user is looking on the screen in real-time.
-- Visualization : Displays a visual indicator showing the current gaze position.
-- Video Stimuli : Can display a video while tracking eye movements, with adjustable opacity.
-- Data Recording : Records eye gaze coordinates at 60Hz frequency.
-- CSV Export : Exports tracking data to a CSV file with timestamps and x,y coordinates.
-- Countdown Timer : Includes a 5-second countdown before recording starts to reduce initial data noise.
-- Wink Detection : Detects when the user winks or raises eyebrows.
-- Calibration System : Supports eye tracking calibration to improve accuracy.
-- Trajectory Visualization : Provides visualization of eye movement patterns.
-- Data Processing : Automatically filters and processes eye tracking data for quality.
+- **Real-time Eye Tracking**: Tracks where the user is looking on the screen with optimized smoothing
+- **Simple Smoothing Algorithm**: Lightweight sliding window averaging (0-50 points, default: 30)
+- **Responsive Controls**: Real-time adjustable smoothing for different use cases
+- **Enhanced Calibration**: Dual-phase calibration with auto-validation and 50pt proximity check
+- **8-Figure Measurement**: Advanced trajectory following with ME (Mean Euclidean) error analysis
+- **Video Stimuli**: Display videos while tracking with adjustable opacity
+- **Data Recording**: Records eye gaze coordinates at 60Hz frequency
+- **CSV Export**: Exports tracking data with timestamps and coordinates
+- **Trajectory Visualization**: Comprehensive trajectory comparison and error analysis
+- **Performance Optimized**: Minimal latency with consistent 60fps performance
 ## Architecture
 GazeTrackApp uses a modular architecture with the following components:
 
-- ARViewContainer : Handles AR session and face tracking
-- TrajectoryManager : Manages recording and exporting of gaze trajectory data
-- CalibrationManager : Handles eye tracking calibration
-- VideoManager : Manages video playback and opacity settings
-- UIManager : Handles UI state and interactions
+- **ARViewContainer**: Handles AR session and face tracking with integrated smoothing
+- **SimpleGazeSmoothing**: Lightweight sliding window averaging algorithm
+- **CalibrationManager**: Enhanced dual-phase calibration with auto-validation
+- **MeasurementManager**: 8-figure trajectory measurement with ME error analysis
+- **TrajectoryManager**: Manages recording and exporting of gaze trajectory data
+- **VideoManager**: Manages video playback and opacity settings
+- **UIManager**: Handles UI state and interactions
+- **TrajectoryComparisonView**: Visual trajectory comparison and error analysis
 ## Requirements
 - iOS device with Face ID (iPhone X or newer, or compatible iPad Pro)
 - iOS 16.0 or later
@@ -33,14 +36,23 @@ GazeTrackApp uses a modular architecture with the following components:
 3. Connect your iOS device
 4. Build and run the app on your device
 ## Usage
+
+### Basic Eye Tracking
 1. Launch the app on your iOS device
 2. Choose whether to display a video or use the camera view
-3. Press "Start Calibration" to calibrate eye tracking (optional but recommended)
-4. Press "Start" to begin eye tracking (a 5-second countdown will appear)
-5. Look around the screen naturally
-6. Press "Stop" when finished
-7. Use "Show Trajectory" to view visualization of eye movements
-8. Use "Export Trajectory" to save and share the data
+3. Adjust smoothing window size (0-50 points) using the slider
+4. Press "Start Calibration" for enhanced calibration (recommended)
+5. Press "Start" to begin eye tracking (5-second countdown appears)
+6. Look around the screen naturally
+7. Press "Stop" when finished
+8. Use "Show Trajectory" to view visualization of eye movements
+9. Use "Export Trajectory" to save and share the data
+
+### Advanced Features
+- **Calibration**: Enhanced dual-phase calibration with auto-validation
+- **8-Figure Measurement**: Test tracking accuracy with trajectory following
+- **Smoothing Control**: Real-time adjustment of window size for optimal performance
+- **ME Error Analysis**: View Mean Euclidean error in centimeters and detailed statistics
 ## Data Format
 The exported CSV file contains the following columns:
 
@@ -53,15 +65,25 @@ The exported CSV file contains the following columns:
 - Works best when user's face is fully visible to the camera
 - Calibration may vary between users and devices
 - Recording time needs to be at least 10 seconds to be valid
+## Recent Updates
+
+### Version 2.0 Features
+- **Simplified Smoothing**: Replaced complex Kalman filtering with efficient sliding window averaging
+- **Enhanced Calibration**: Dual-phase calibration with auto-validation and proximity checking
+- **8-Figure Measurement**: Advanced trajectory measurement with ME (Mean Euclidean) error analysis
+- **Performance Optimization**: Reduced latency and improved 60fps consistency
+- **UI Improvements**: Real-time smoothing controls and enhanced user feedback
+- **Bug Fixes**: Resolved measurement result dialog close button issues
+
 ## Future Development
 Planned features for future releases:
 
-- Improved calibration system for better tracking accuracy
 - Heatmap visualization of gaze patterns
 - Additional stimuli options (images, text, web content)
-- Data analysis tools within the app
+- Machine learning-based gaze prediction
+- Multi-user session support
 - Cloud storage for session data
-- Support for more devices and iOS versions
+- Advanced statistical analysis tools
 ## License
 MIT License
 
