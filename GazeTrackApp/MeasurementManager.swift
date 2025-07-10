@@ -610,4 +610,12 @@ class MeasurementManager: ObservableObject {
         trajectoryCountdownValue = 3
         currentEyeToScreenDistance = 30.0
     }
+    
+    // 强制关闭结果页面和可视化页面
+    func forceCloseResultsAndVisualization() {
+        DispatchQueue.main.async {
+            self.showTrajectoryResults = false
+            self.showTrajectoryVisualization = false
+        }
+    }
 }

@@ -14,7 +14,7 @@ struct ContentView: View {
     @State private var isWinking: Bool = false
     @State private var timerPublisher = Timer.publish(every: 1.0/60.0, on: .main, in: .common).autoconnect()
     @State private var showCalibrationGreeting = false
-    @State private var smoothingIntensity: Float = 0.6 // 针对眨眼抖动优化的默认值
+    @State private var smoothingWindowSize: Int = 30 // 简单平滑窗口大小，默认30点
     @State private var arView: CustomARView?
 
     // 管理器
@@ -46,7 +46,7 @@ struct ContentView: View {
                     isWinking: $isWinking,
                     calibrationManager: calibrationManager,
                     measurementManager: measurementManager,
-                    smoothingIntensity: $smoothingIntensity,
+                    smoothingWindowSize: $smoothingWindowSize,
                     arView: $arView
                 )
                 .onReceive(timerPublisher) { _ in
@@ -85,7 +85,7 @@ struct ContentView: View {
                     isWinking: $isWinking,
                     calibrationManager: calibrationManager,
                     measurementManager: measurementManager,
-                    smoothingIntensity: $smoothingIntensity,
+                    smoothingWindowSize: $smoothingWindowSize,
                     arView: $arView
                 )
                 .opacity(0)  // 完全透明，只用于数据收集
@@ -388,11 +388,12 @@ struct ContentView: View {
                     .padding(.vertical, 5)
                 }
                 
-                // 平滑强度控制滑块 - 在眼动追踪和测量模式下显示
+                // 简单平滑控制滑块 - 在眼动追踪和测量模式下显示
                 if mode == .gazeTrack || mode == .measurement {
                     VStack(alignment: .leading, spacing: 5) {
+                        // 平滑标题
                         HStack {
-                            Text("平滑强度: \(Int(smoothingIntensity * 100))%")
+                            Text("简单平滑: \(smoothingWindowSize)点")
                                 .font(.subheadline)
                                 .foregroundColor(.white)
                                 .fontWeight(.medium)
@@ -401,30 +402,34 @@ struct ContentView: View {
                             
                             Text("🎯 抗抖动")
                                 .font(.caption2)
-                                .foregroundColor(.orange)
+                                .foregroundColor(.green)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Color.orange.opacity(0.2))
+                                .background(Color.green.opacity(0.2))
                                 .cornerRadius(8)
                         }
                         .padding(8)
                         .background(Color.black.opacity(0.6))
                         .cornerRadius(5)
                         
+                        // 平滑窗口大小控制
                         HStack {
                             Text("响应")
                                 .font(.caption2)
                                 .foregroundColor(.white.opacity(0.7))
                             
                             Slider(value: Binding(
-                                get: { Double(smoothingIntensity) },
-                                set: { smoothingIntensity = Float($0) }
-                            ), in: 0.0...1.0, onEditingChanged: { editing in
+                                get: { Double(smoothingWindowSize) },
+                                set: { 
+                                    smoothingWindowSize = Int($0)
+                                    arView?.resetSmoothingFilter() // 窗口大小变化时重置
+                                }
+                            ), in: 0.0...50.0, step: 1.0, onEditingChanged: { editing in
                                 if editing {
                                     uiManager.resetButtonHideTimer()
                                 }
                             })
-                            .accentColor(.blue)
+                            .accentColor(.green)
                             
                             Text("稳定")
                                 .font(.caption2)
@@ -556,6 +561,10 @@ struct ContentView: View {
                 ZStack {
                     Color.black.opacity(0.8)
                         .edgesIgnoringSafeArea(.all)
+                        .onTapGesture {
+                            // 点击背景也可以关闭弹窗
+                            measurementManager.forceCloseResultsAndVisualization()
+                        }
                     
                     ScrollView {
                         VStack(spacing: 20) {
@@ -631,21 +640,28 @@ struct ContentView: View {
                                 .padding()
                                 .background(Color.blue)
                                 .cornerRadius(10)
+                                .contentShape(Rectangle()) // 确保整个按钮区域都可以点击
                                 
                                 Button("关闭") {
-                                    measurementManager.showTrajectoryResults = false
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        measurementManager.forceCloseResultsAndVisualization()
+                                    }
                                 }
                                 .font(.headline)
                                 .foregroundColor(.white)
                                 .padding()
                                 .background(Color.purple)
                                 .cornerRadius(10)
+                                .contentShape(Rectangle()) // 确保整个按钮区域都可以点击
                             }
                         }
                         .padding(30)
                     }
                     .background(Color.gray.opacity(0.5))
                     .cornerRadius(20)
+                    .onTapGesture {
+                        // 防止点击内容区域时关闭弹窗
+                    }
                 }
                 .zIndex(200) // 确保显示在最上层
             }

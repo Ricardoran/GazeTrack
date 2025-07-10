@@ -18,7 +18,7 @@ struct ARViewContainer: UIViewRepresentable {
     @Binding var isWinking: Bool
     @StateObject var calibrationManager: CalibrationManager
     @StateObject var measurementManager: MeasurementManager
-    @Binding var smoothingIntensity: Float
+    @Binding var smoothingWindowSize: Int
     @Binding var arView: CustomARView?
     
     func makeUIView(context: Context) -> CustomARView {
@@ -28,7 +28,7 @@ struct ARViewContainer: UIViewRepresentable {
             isWinking: $isWinking,
             calibrationManager: calibrationManager,
             measurementManager: measurementManager,
-            smoothingIntensity: $smoothingIntensity
+            smoothingWindowSize: $smoothingWindowSize
         )
         
         // 将ARView实例存储到绑定中
@@ -48,27 +48,23 @@ class CustomARView: ARView, ARSessionDelegate {
     @Binding var isWinking: Bool
     var calibrationManager: CalibrationManager
     var measurementManager: MeasurementManager
-    @Binding var smoothingIntensity: Float
+    @Binding var smoothingWindowSize: Int
     
-    // 增强版Kalman滤波器（眨眼感知+边缘自适应）
-    private var gazeKalmanFilter = GazeKalmanFilter()
-    private var lastUpdateTime: TimeInterval = 0
-    private var isSmoothing: Bool = false
-    private var lastBlinkCheck: Float = 0
-    private let baseMeasurementNoise: Float = 2.0
+    // 简单平滑器
+    private var simpleGazeSmoothing = SimpleGazeSmoothing(windowSize: 30)
     
     init(eyeGazeActive: Binding<Bool>,
          lookAtPoint: Binding<CGPoint?>,
          isWinking: Binding<Bool>,
          calibrationManager: CalibrationManager,
          measurementManager: MeasurementManager,
-         smoothingIntensity: Binding<Float>) {
+         smoothingWindowSize: Binding<Int>) {
         self.calibrationManager = calibrationManager
         self.measurementManager = measurementManager
         _eyeGazeActive = eyeGazeActive
         _lookAtPoint = lookAtPoint
         _isWinking = isWinking
-        _smoothingIntensity = smoothingIntensity
+        _smoothingWindowSize = smoothingWindowSize
         super.init(frame: .zero)
         self.session.delegate = self
         calibrationManager.arView = self
@@ -181,8 +177,8 @@ class CustomARView: ARView, ARSessionDelegate {
             y: CGFloat(screenY).clamped(to: Ranges.heightRange)
         )
         
-        // 应用增强版Kalman滤波器进行平滑处理
-        let focusPoint = applyKalmanSmoothing(rawPoint: rawFocusPoint, faceAnchor: faceAnchor)
+        // 应用简单平滑处理
+        let focusPoint = applySmoothing(rawPoint: rawFocusPoint)
         
         #if DEBUG
         if arc4random_uniform(300) == 0 {
@@ -230,15 +226,15 @@ class CustomARView: ARView, ARSessionDelegate {
     func updateDetectGazePoint(faceAnchor: ARFaceAnchor){
         let rawFocusPoint = detectGazePoint(faceAnchor: faceAnchor)
         
-        // 在测量模式下也应用滤波器
+        // 在测量模式下也应用平滑处理
         let finalFocusPoint: CGPoint
         if measurementManager.isMeasuring || measurementManager.isTrajectoryMeasuring {
-            finalFocusPoint = applyKalmanSmoothing(rawPoint: rawFocusPoint, faceAnchor: faceAnchor)
+            finalFocusPoint = applySmoothing(rawPoint: rawFocusPoint)
             
             #if DEBUG
             if arc4random_uniform(300) == 0 {
                 let distance = sqrt(pow(finalFocusPoint.x - rawFocusPoint.x, 2) + pow(finalFocusPoint.y - rawFocusPoint.y, 2))
-                print("📏 [MEASUREMENT FILTER] 测量模式滤波: 距离差:\(String(format: "%.1f", distance))pt, 平滑:\(String(format: "%.0f", smoothingIntensity * 100))%")
+                print("📏 [MEASUREMENT FILTER] 测量模式滤波: 距离差:\(String(format: "%.1f", distance))pt, 窗口:\(smoothingWindowSize)点")
             }
             #endif
         } else {
@@ -252,10 +248,21 @@ class CustomARView: ARView, ARSessionDelegate {
     func updateDetectGazePointAfterCalibration(faceAnchor: ARFaceAnchor,overrideLookAtPoint: SIMD3<Float>){
         let rawFocusPoint = detectGazePointAfterCalibration(faceAnchor: faceAnchor,overrideLookAtPoint: overrideLookAtPoint)
         
-        // 在测量模式下也应用滤波器（校准后）
+        // 在gaze tracking模式和测量模式下都应用平滑处理
         let finalFocusPoint: CGPoint
-        if measurementManager.isMeasuring || measurementManager.isTrajectoryMeasuring {
-            finalFocusPoint = applyKalmanSmoothing(rawPoint: rawFocusPoint, faceAnchor: faceAnchor)
+        if eyeGazeActive && calibrationManager.calibrationCompleted {
+            // Gaze tracking模式：始终应用平滑
+            finalFocusPoint = applySmoothing(rawPoint: rawFocusPoint)
+            
+            #if DEBUG
+            if arc4random_uniform(300) == 0 {
+                let distance = sqrt(pow(finalFocusPoint.x - rawFocusPoint.x, 2) + pow(finalFocusPoint.y - rawFocusPoint.y, 2))
+                print("👁️ [GAZE TRACKING FILTER] 简单平滑: 距离差:\(String(format: "%.1f", distance))pt")
+            }
+            #endif
+        } else if measurementManager.isMeasuring || measurementManager.isTrajectoryMeasuring {
+            // 测量模式：也应用平滑
+            finalFocusPoint = applySmoothing(rawPoint: rawFocusPoint)
             
             #if DEBUG
             if arc4random_uniform(300) == 0 {
@@ -346,95 +353,47 @@ class CustomARView: ARView, ARSessionDelegate {
         isWinking = browInnerUp > eyebrowRaiseThreshold
     }
     
-    // MARK: - Kalman滤波器相关方法
+    // MARK: - 简单平滑相关方法
     
-    /// 应用专门针对眨眼优化的Kalman滤波器
-    private func applyKalmanSmoothing(rawPoint: CGPoint, faceAnchor: ARFaceAnchor) -> CGPoint {
-        // 检查smoothingIntensity是否为0，如果是则不进行平滑
-        if smoothingIntensity <= 0.001 {
+    /// 应用简单平滑处理
+    private func applySmoothing(rawPoint: CGPoint) -> CGPoint {
+        // 如果窗口大小为0，直接返回原始点
+        if smoothingWindowSize <= 0 {
             return rawPoint
         }
         
-        let currentTime = CACurrentMediaTime()
+        // 更新平滑器的窗口大小
+        simpleGazeSmoothing.updateWindowSize(smoothingWindowSize)
         
-        // 如果这是第一次更新或时间间隔过长，重置滤波器
-        if lastUpdateTime == 0 || (currentTime - lastUpdateTime) > 0.1 {
-            gazeKalmanFilter.reset()
-            lastUpdateTime = currentTime
-            isSmoothing = false
-            
-            #if DEBUG
-            if arc4random_uniform(100) == 0 {
-                print("🔄 [ENHANCED KALMAN] 增强版Kalman滤波器重置")
-            }
-            #endif
-            
-            return rawPoint
-        }
-        
-        let deltaTime = Float(currentTime - lastUpdateTime)
-        lastUpdateTime = currentTime
-        
-        // 眨眼检测
-        let blendShapes = faceAnchor.blendShapes
-        let leftEyeBlink = blendShapes[.eyeBlinkLeft] as? Float ?? 0.0
-        let rightEyeBlink = blendShapes[.eyeBlinkRight] as? Float ?? 0.0
-        let currentBlinkLevel = max(leftEyeBlink, rightEyeBlink)
-        
-        // 更新滤波器参数（基于平滑强度）
-        let processNoise = 0.005 + (1.0 - smoothingIntensity) * 0.295
-        let measurementNoise = baseMeasurementNoise + smoothingIntensity * 28.0
-        gazeKalmanFilter.updateParameters(processNoise: processNoise, measurementNoise: measurementNoise)
-        
-        // 使用增强版Kalman滤波器（包含眨眼感知+边缘自适应）
-        let smoothedPoint = gazeKalmanFilter.updateEnhanced(
-            measurement: rawPoint,
-            deltaTime: deltaTime,
-            blinkLevel: currentBlinkLevel,
-            smoothingIntensity: smoothingIntensity
-        )
-        
-        lastBlinkCheck = currentBlinkLevel
-        isSmoothing = true
+        // 应用简单平滑
+        let smoothedPoint = simpleGazeSmoothing.addPoint(rawPoint)
         
         #if DEBUG
         if arc4random_uniform(600) == 0 {
             let distance = sqrt(pow(smoothedPoint.x - rawPoint.x, 2) + pow(smoothedPoint.y - rawPoint.y, 2))
-            print("🎯 [ENHANCED KALMAN] 平滑强度:\(String(format: "%.2f", smoothingIntensity)), 眨眼等级:\(String(format: "%.2f", currentBlinkLevel)), 距离差:\(String(format: "%.1f", distance))pt")
+            print("🎯 [SIMPLE SMOOTHING] 窗口大小:\(smoothingWindowSize), 距离差:\(String(format: "%.1f", distance))pt")
         }
         #endif
         
         return smoothedPoint
     }
     
-    /// 根据smoothingIntensity更新Kalman滤波器参数
-    private func updateKalmanParameters() {
-        // 将smoothingIntensity (0.0-1.0) 映射到合适的滤波器参数
-        // 增强版滤波器对眨眼更敏感，需要更精细的参数调整
-        
-        // 过程噪声：较小的值使系统更相信预测，较大的值使系统更相信测量
-        // 范围：0.005 (强平滑) 到 0.3 (弱平滑)
-        let processNoise = 0.005 + (1.0 - smoothingIntensity) * 0.295
-        
-        // 测量噪声：较大的值使系统更相信预测，较小的值使系统更相信测量
-        // 范围：2.0 (弱平滑) 到 30.0 (强平滑)
-        let measurementNoise = 2.0 + smoothingIntensity * 28.0
-        
-        gazeKalmanFilter.updateParameters(
-            processNoise: processNoise,
-            measurementNoise: measurementNoise
-        )
-    }
-    
-    /// 重置增强版Kalman滤波器（在开始新的追踪会话时调用）
-    func resetKalmanFilter() {
-        gazeKalmanFilter.reset()
-        lastUpdateTime = 0
-        isSmoothing = false
+    /// 重置简单平滑器
+    func resetSmoothingFilter() {
+        simpleGazeSmoothing.reset()
         
         #if DEBUG
-        print("🔄 [ENHANCED KALMAN] 增强版Kalman滤波器手动重置")
+        print("🔄 [SIMPLE SMOOTHING] 简单平滑器已重置")
         #endif
+    }
+    
+    /// 向后兼容的重置方法
+    func resetKalmanFilter() {
+        resetSmoothingFilter()
+    }
+    
+    func resetSmoothingFilters() {
+        resetSmoothingFilter()
     }
     
     @MainActor @preconcurrency required dynamic init?(coder decoder: NSCoder) {
