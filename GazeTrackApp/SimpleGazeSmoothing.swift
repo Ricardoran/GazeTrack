@@ -8,18 +8,15 @@
 import Foundation
 import CoreGraphics
 
-/// 基于加权滑动窗口的简单凝视点平滑算法
-/// 新点权重更高，减少延迟同时保持平滑性，比Kalman滤波器更轻量和直观
+/// 基于滑动窗口的简单凝视点平滑算法, 使用简单平均值
 class SimpleGazeSmoothing {
     
     private var points: [CGPoint] = []
     private var windowSize: Int
     private var isInitialized: Bool = false
-    private let useWeightedAverage: Bool
     
-    init(windowSize: Int = 30, useWeightedAverage: Bool = true) {
+    init(windowSize: Int = 30) {
         self.windowSize = max(1, windowSize)
-        self.useWeightedAverage = useWeightedAverage
     }
     
     /// 动态更新窗口大小
@@ -40,33 +37,10 @@ class SimpleGazeSmoothing {
             points.removeFirst()
         }
         
-        // 返回平均位置
-        return useWeightedAverage ? calculateWeightedAverage() : calculateSimpleAverage()
+        // 返回简单平均位置
+        return calculateSimpleAverage()
     }
     
-    /// 计算加权平均（新点权重更高）
-    private func calculateWeightedAverage() -> CGPoint {
-        guard !points.isEmpty else {
-            return CGPoint.zero
-        }
-        
-        var weightedSumX: CGFloat = 0
-        var weightedSumY: CGFloat = 0
-        var totalWeight: CGFloat = 0
-        
-        // 线性权重：最新点权重最高
-        for (index, point) in points.enumerated() {
-            let weight = CGFloat(index + 1) // 权重从1到points.count
-            weightedSumX += point.x * weight
-            weightedSumY += point.y * weight
-            totalWeight += weight
-        }
-        
-        return CGPoint(
-            x: weightedSumX / totalWeight,
-            y: weightedSumY / totalWeight
-        )
-    }
     
     /// 计算简单平均位置
     private func calculateSimpleAverage() -> CGPoint {
@@ -89,7 +63,7 @@ class SimpleGazeSmoothing {
     
     /// 当前平滑后的位置
     var currentPosition: CGPoint {
-        return useWeightedAverage ? calculateWeightedAverage() : calculateSimpleAverage()
+        return calculateSimpleAverage()
     }
     
     /// 当前窗口内的点数量
