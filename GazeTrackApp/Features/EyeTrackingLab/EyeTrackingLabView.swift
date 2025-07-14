@@ -159,7 +159,7 @@ struct EyeTrackingLabView: View {
                     // 直接使用gaze点坐标，无需添加safe area offset
                     // 这与原有gaze track的显示方式保持一致
                     Circle()
-                        .fill(Color.green.opacity(0.8))
+                        .fill(currentMethod.color.opacity(0.8))
                         .frame(width: 25, height: 25)
                         .position(x: labManager.averageGaze.x, y: labManager.averageGaze.y)
                 }
