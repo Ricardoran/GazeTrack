@@ -1,16 +1,60 @@
 import SwiftUI
 
+enum EyeTrackingMethod: CaseIterable {
+    case dualEyesHitTest       // 双眼分别计算 + hitTest
+    case lookAtPointMatrix     // lookAtPoint + 矩阵变换 (主要gaze track方法)
+    case lookAtPointHitTest    // lookAtPoint + hitTest
+    
+    var displayName: String {
+        switch self {
+        case .dualEyesHitTest:
+            return "双眼分别 + HitTest"
+        case .lookAtPointMatrix:
+            return "LookAt + 矩阵变换"
+        case .lookAtPointHitTest:
+            return "LookAt + HitTest"
+        }
+    }
+    
+    var shortName: String {
+        switch self {
+        case .dualEyesHitTest:
+            return "D+H"
+        case .lookAtPointMatrix:
+            return "L+M"
+        case .lookAtPointHitTest:
+            return "L+H"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .dualEyesHitTest:
+            return .orange
+        case .lookAtPointMatrix:
+            return .blue
+        case .lookAtPointHitTest:
+            return .purple
+        }
+    }
+}
+
 struct DoubleEyesTrackView: View {
     @Binding var currentView: AppView
     @StateObject private var doubleEyesManager = DoubleEyesTrackManager()
+    @StateObject private var uiManager = UIManager()
     @State private var smoothingWindowSize: Int = 10 // 默认10点窗口
-    @State private var useLookAtPointMethod: Bool = false // 是否使用lookAtPoint+hitTest方法
+    @State private var currentMethod: EyeTrackingMethod = .dualEyesHitTest // 当前追踪方法
     
     var body: some View {
         ZStack {
             // AR View Container
-            DoubleEyesARViewContainer(manager: doubleEyesManager, smoothingWindowSize: $smoothingWindowSize, useLookAtPointMethod: $useLookAtPointMethod)
+            DoubleEyesARViewContainer(manager: doubleEyesManager, smoothingWindowSize: $smoothingWindowSize, trackingMethod: $currentMethod)
                 .ignoresSafeArea()
+                .onTapGesture {
+                    uiManager.showButtons = true
+                    uiManager.resetButtonHideTimer()
+                }
             
             VStack {
                 // Top controls
@@ -21,30 +65,34 @@ struct DoubleEyesTrackView: View {
                     
                     Spacer()
                     
-                    Text("Double Eyes Track")
-                        .font(.headline)
-                        .foregroundColor(.white)
+                    // 方法切换按钮 (原来的标题位置)
+                    Button(action: {
+                        // 循环切换到下一个方法
+                        let allMethods = EyeTrackingMethod.allCases
+                        if let currentIndex = allMethods.firstIndex(of: currentMethod) {
+                            let nextIndex = (currentIndex + 1) % allMethods.count
+                            currentMethod = allMethods[nextIndex]
+                        }
+                        uiManager.resetButtonHideTimer()
+                    }) {
+                        VStack(spacing: 2) {
+                            Text("Eye Tracking Lab")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                            Text(currentMethod.displayName)
+                                .font(.caption)
+                                .foregroundColor(currentMethod.color)
+                        }
                         .padding()
                         .background(Color.black.opacity(0.6))
                         .cornerRadius(10)
+                    }
                     
                     Spacer()
                     
-                    // 方法切换按钮
-                    Button(action: {
-                        useLookAtPointMethod.toggle()
-                    }) {
-                        Text(useLookAtPointMethod ? "L+H" : "D+H")
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                            .padding(8)
-                            .background(useLookAtPointMethod ? Color.blue.opacity(0.8) : Color.orange.opacity(0.8))
-                            .clipShape(Circle())
-                    }
-                    
                     Button(action: {
                         doubleEyesManager.resetTracking()
+                        uiManager.resetButtonHideTimer()
                     }) {
                         Image(systemName: "arrow.clockwise")
                             .font(.title2)
@@ -55,6 +103,8 @@ struct DoubleEyesTrackView: View {
                     }
                 }
                 .padding()
+                .opacity(uiManager.showButtons ? 1 : 0)
+                .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
                 
                 Spacer()
                 
@@ -70,7 +120,11 @@ struct DoubleEyesTrackView: View {
                             smoothingWindowSize = Int($0)
                             doubleEyesManager.updateSmoothingWindowSize(smoothingWindowSize)
                         }
-                    ), in: 0.0...50.0, step: 1.0)
+                    ), in: 0.0...50.0, step: 1.0, onEditingChanged: { editing in
+                        if editing {
+                            uiManager.resetButtonHideTimer()
+                        }
+                    })
                     .accentColor(.green)
                     
                     Text("\(smoothingWindowSize)")
@@ -89,65 +143,14 @@ struct DoubleEyesTrackView: View {
                 .cornerRadius(10)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
+                .opacity(uiManager.showButtons ? 1 : 0)
+                .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
                 
-                // Bottom info panel
-                VStack(spacing: 10) {
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text("Left Eye")
-                                .font(.caption)
-                                .foregroundColor(.red)
-                            Text("X: \(String(format: "%.1f", doubleEyesManager.leftEyeGaze.x))")
-                                .font(.caption2)
-                                .foregroundColor(.white)
-                            Text("Y: \(String(format: "%.1f", doubleEyesManager.leftEyeGaze.y))")
-                                .font(.caption2)
-                                .foregroundColor(.white)
-                        }
-                        
-                        Spacer()
-                        
-                        VStack(alignment: .trailing) {
-                            Text("Right Eye")
-                                .font(.caption)
-                                .foregroundColor(.blue)
-                            Text("X: \(String(format: "%.1f", doubleEyesManager.rightEyeGaze.x))")
-                                .font(.caption2)
-                                .foregroundColor(.white)
-                            Text("Y: \(String(format: "%.1f", doubleEyesManager.rightEyeGaze.y))")
-                                .font(.caption2)
-                                .foregroundColor(.white)
-                        }
-                    }
-                    
-                    HStack {
-                        Text("Average Gaze")
-                            .font(.caption)
-                            .foregroundColor(.green)
-                        
-                        Spacer()
-                        
-                        Text("X: \(String(format: "%.1f", doubleEyesManager.averageGaze.x)), Y: \(String(format: "%.1f", doubleEyesManager.averageGaze.y))")
-                            .font(.caption2)
-                            .foregroundColor(.white)
-                    }
-                    
-                    HStack {
-                        Text("方法")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                        
-                        Spacer()
-                        
-                        Text(useLookAtPointMethod ? "lookAtPoint + hitTest" : "双眼分别 + hitTest")
-                            .font(.caption2)
-                            .foregroundColor(useLookAtPointMethod ? .blue : .orange)
-                    }
-                }
-                .padding()
-                .background(Color.black.opacity(0.7))
-                .cornerRadius(15)
-                .padding()
+                // 距离显示组件
+                EyeToScreenDistanceView(distance: doubleEyesManager.currentEyeToScreenDistance)
+                    .padding()
+                    .opacity(uiManager.showButtons ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
             }
             
             // Average gaze indicator only
@@ -166,9 +169,13 @@ struct DoubleEyesTrackView: View {
             doubleEyesManager.startTracking()
             // 设置初始窗口大小
             doubleEyesManager.updateSmoothingWindowSize(smoothingWindowSize)
+            // 启动UI自动隐藏计时器
+            uiManager.showButtons = true
+            uiManager.setupButtonHideTimer()
         }
         .onDisappear {
             doubleEyesManager.stopTracking()
+            uiManager.cleanup()
         }
     }
 }

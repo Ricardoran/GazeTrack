@@ -79,9 +79,9 @@ struct LandingPageView: View {
                         currentView = .doubleEyesTrack
                     }) {
                         HStack {
-                            Image(systemName: "eyes")
+                            Image(systemName: "eye.trianglebadge.exclamationmark")
                                 .font(.title2)
-                            Text("Double Eyes Track")
+                            Text("Eye Tracking Lab")
                                 .font(.headline)
                         }
                         .foregroundColor(.white)

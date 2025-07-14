@@ -62,3 +62,34 @@ struct BackButton: View {
         }
     }
 }
+
+struct EyeToScreenDistanceView: View {
+    let distance: Float
+    let title: String
+    
+    init(distance: Float, title: String = "眼睛到屏幕距离") {
+        self.distance = distance
+        self.title = title
+    }
+    
+    var body: some View {
+        VStack(spacing: 6) {
+            Text("实时距离")
+                .font(.caption)
+                .foregroundColor(.white.opacity(0.8))
+            
+            Text("\(String(format: "%.1f", distance)) cm")
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(.white)
+            
+            Text(title)
+                .font(.caption2)
+                .foregroundColor(.white.opacity(0.6))
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(Color.black.opacity(0.7))
+        .cornerRadius(12)
+    }
+}

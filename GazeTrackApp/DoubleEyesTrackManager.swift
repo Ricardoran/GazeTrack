@@ -7,6 +7,7 @@ class DoubleEyesTrackManager: ObservableObject {
     @Published var rightEyeGaze: CGPoint = CGPoint.zero
     @Published var averageGaze: CGPoint = CGPoint.zero
     @Published var isTracking: Bool = false
+    @Published var currentEyeToScreenDistance: Float = 30.0 // 默认30cm
     
     // 使用SimpleGazeSmoothing进行平滑处理
     private let leftEyeSmoothing = SimpleGazeSmoothing(windowSize: 10)
@@ -48,6 +49,11 @@ class DoubleEyesTrackManager: ObservableObject {
     func updateSmoothingWindowSize(_ windowSize: Int) {
         leftEyeSmoothing.updateWindowSize(windowSize)
         rightEyeSmoothing.updateWindowSize(windowSize)
+    }
+    
+    /// 更新眼睛到屏幕距离
+    func updateEyeToScreenDistance(_ distance: Float) {
+        currentEyeToScreenDistance = distance
     }
     
 }

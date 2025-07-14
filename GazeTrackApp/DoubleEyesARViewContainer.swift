@@ -5,16 +5,16 @@ import ARKit
 struct DoubleEyesARViewContainer: UIViewRepresentable {
     let manager: DoubleEyesTrackManager
     @Binding var smoothingWindowSize: Int
-    @Binding var useLookAtPointMethod: Bool
+    @Binding var trackingMethod: EyeTrackingMethod
     
     func makeUIView(context: Context) -> DoubleEyesARSCNView {
-        let arView = DoubleEyesARSCNView(manager: manager, smoothingWindowSize: smoothingWindowSize, useLookAtPointMethod: useLookAtPointMethod)
+        let arView = DoubleEyesARSCNView(manager: manager, smoothingWindowSize: smoothingWindowSize, trackingMethod: trackingMethod)
         return arView
     }
     
     func updateUIView(_ uiView: DoubleEyesARSCNView, context: Context) {
         uiView.updateSmoothingWindowSize(smoothingWindowSize)
-        uiView.updateTrackingMethod(useLookAtPointMethod)
+        uiView.updateTrackingMethod(trackingMethod)
     }
 }
 
@@ -81,12 +81,12 @@ class DoubleEyesARSCNView: ARSCNView, ARSCNViewDelegate {
     
     // 使用SimpleGazeSmoothing进行平滑处理
     private let gazeSmoothing: SimpleGazeSmoothing
-    private var useLookAtPointMethod: Bool
+    private var currentTrackingMethod: EyeTrackingMethod
     
-    init(manager: DoubleEyesTrackManager, smoothingWindowSize: Int, useLookAtPointMethod: Bool) {
+    init(manager: DoubleEyesTrackManager, smoothingWindowSize: Int, trackingMethod: EyeTrackingMethod) {
         self.manager = manager
         self.gazeSmoothing = SimpleGazeSmoothing(windowSize: smoothingWindowSize)
-        self.useLookAtPointMethod = useLookAtPointMethod
+        self.currentTrackingMethod = trackingMethod
         // 在主线程初始化时缓存Device配置和范围
         self.deviceScreenSize = Device.screenSize
         self.deviceFrameSize = Device.frameSize
@@ -120,10 +120,13 @@ class DoubleEyesARSCNView: ARSCNView, ARSCNViewDelegate {
     
     // 主入口：根据设置选择方法
     func hitTest() {
-        if useLookAtPointMethod {
-            hitTestWithLookAtPoint()
-        } else {
+        switch currentTrackingMethod {
+        case .dualEyesHitTest:
             hitTestWithDualEyes()
+        case .lookAtPointHitTest:
+            hitTestWithLookAtPoint()
+        case .lookAtPointMatrix:
+            hitTestWithLookAtPointMatrix()
         }
     }
     
@@ -249,12 +252,107 @@ class DoubleEyesARSCNView: ARSCNView, ARSCNViewDelegate {
         }
     }
     
-    private func setNewPoint(leftPoint: CGPoint, rightPoint: CGPoint, averagePoint: CGPoint) {
-
-        DispatchQueue.main.async {
-            // 分别设置左右眼和平均点
-            self.manager.updateEyeGaze(leftEye: leftPoint, rightEye: rightPoint)
+    // 方法C: lookAtPoint + 矩阵变换 (主要gaze track的方法)
+    private func hitTestWithLookAtPointMatrix() {
+        guard let faceAnchor = currentFaceAnchor else {
+            return
         }
+        
+        // 使用ARKit的lookAtPoint + 矩阵变换 (复制主要gaze track逻辑)
+        let lookAtPoint = faceAnchor.lookAtPoint
+        guard let cameraTransform = session.currentFrame?.camera.transform else {
+            return
+        }
+        
+        // convert the lookAtPoint from local coordinate into world coordinate
+        let lookAtPointInWorld = faceAnchor.transform * simd_float4(lookAtPoint, 1)
+
+        // convert the lookAtPoint from world coordinate into camera coordinate
+        let lookAtPointInCamera = simd_mul(simd_inverse(cameraTransform), lookAtPointInWorld)
+        
+        // 计算focus point在手机屏幕的坐标（支持横竖屏）
+        let screenX: Float
+        let screenY: Float
+        
+        if Device.isCameraOnLeft {
+            // 摄像头在左侧（landscapeRight）
+            let orientationAwarePhysicalSize = Device.orientationAwareScreenSize
+            let frameSize = Device.frameSize
+            screenX = lookAtPointInCamera.x / (Float(orientationAwarePhysicalSize.width) / 2) * Float(frameSize.width)
+            screenY = -lookAtPointInCamera.y / (Float(orientationAwarePhysicalSize.height) / 2) * Float(frameSize.height)
+        } else if Device.isCameraOnRight {
+            // 摄像头在右侧（landscapeLeft）
+            let orientationAwarePhysicalSize = Device.orientationAwareScreenSize
+            let frameSize = Device.frameSize
+            screenX = -lookAtPointInCamera.x / (Float(orientationAwarePhysicalSize.width) / 2) * Float(frameSize.width)
+            screenY = lookAtPointInCamera.y / (Float(orientationAwarePhysicalSize.height) / 2) * Float(frameSize.height)
+        } else {
+            // Portrait模式：使用原有逻辑
+            screenX = lookAtPointInCamera.y / (Float(Device.screenSize.width) / 2) * Float(Device.frameSize.width)
+            screenY = lookAtPointInCamera.x / (Float(Device.screenSize.height) / 2) * Float(Device.frameSize.height)
+        }
+        
+        let rawFocusPoint = CGPoint(
+            x: CGFloat(screenX).clamped(to: Ranges.widthRange),
+            y: CGFloat(screenY).clamped(to: Ranges.heightRange)
+        )
+        
+        // 临时debug输出
+        if arc4random_uniform(60) == 0 { // 每秒输出一次
+            print("🔍 [LOOKATPOINT+MATRIX DEBUG]")
+            print("lookAtPoint:", lookAtPoint)
+            print("lookAtPointInCamera:", lookAtPointInCamera)
+            print("screenX, screenY:", screenX, screenY)
+            print("rawFocusPoint:", rawFocusPoint)
+            print("================")
+        }
+        
+        // 对于矩阵方法，左右眼点相同
+        setNewPoint(leftPoint: rawFocusPoint, rightPoint: rawFocusPoint, averagePoint: rawFocusPoint)
+    }
+    
+    private func setNewPoint(leftPoint: CGPoint, rightPoint: CGPoint, averagePoint: CGPoint) {
+        // 计算眼睛到屏幕距离
+        if let faceAnchor = currentFaceAnchor,
+           let cameraTransform = session.currentFrame?.camera.transform {
+            let distance = calculateFaceToScreenDistance(faceAnchor: faceAnchor, cameraTransform: cameraTransform)
+            
+            DispatchQueue.main.async {
+                // 分别设置左右眼和平均点
+                self.manager.updateEyeGaze(leftEye: leftPoint, rightEye: rightPoint)
+                // 更新距离
+                self.manager.updateEyeToScreenDistance(distance)
+            }
+        } else {
+            DispatchQueue.main.async {
+                // 分别设置左右眼和平均点
+                self.manager.updateEyeGaze(leftEye: leftPoint, rightEye: rightPoint)
+            }
+        }
+    }
+    
+    /// 计算面部到屏幕距离（复制自ARViewContainer）
+    private func calculateFaceToScreenDistance(faceAnchor: ARFaceAnchor, cameraTransform: simd_float4x4) -> Float {
+        // Calculate face center position in world coordinates
+        let faceWorldPosition = faceAnchor.transform.columns.3
+        
+        // Calculate camera position in world coordinates
+        let cameraWorldPosition = cameraTransform.columns.3
+        
+        // Calculate the distance vector from face to camera
+        let distanceVector = simd_float3(
+            faceWorldPosition.x - cameraWorldPosition.x,
+            faceWorldPosition.y - cameraWorldPosition.y,
+            faceWorldPosition.z - cameraWorldPosition.z
+        )
+        
+        // Calculate the magnitude (distance) in meters
+        let distanceInMeters = simd_length(distanceVector)
+        
+        // Convert to centimeters
+        let distanceInCentimeters = distanceInMeters * 100.0
+        
+        return distanceInCentimeters
     }
     
     /// 更新平滑窗口大小
@@ -263,8 +361,8 @@ class DoubleEyesARSCNView: ARSCNView, ARSCNViewDelegate {
     }
     
     /// 更新追踪方法
-    func updateTrackingMethod(_ useLookAtPoint: Bool) {
-        useLookAtPointMethod = useLookAtPoint
+    func updateTrackingMethod(_ method: EyeTrackingMethod) {
+        currentTrackingMethod = method
     }
     
 }
