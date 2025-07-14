@@ -120,6 +120,12 @@ struct ContentView: View {
                     .padding(.top, 60)
             }
 
+            // 网格覆盖层 - 只在校准模式下显示
+            if calibrationManager.isCalibrating {
+                GridOverlayView()
+                    .allowsHitTesting(false) // 不阻挡AR视图的交互
+            }
+            
             // 校准点视图（在测量模式下或在校准模式下，显示这些已知位置的校准点，蓝色）
             if (calibrationManager.isCalibrating && calibrationManager.showCalibrationPoint) || 
                (measurementManager.isMeasuring && measurementManager.showCalibrationPoint) {
@@ -268,7 +274,7 @@ struct ContentView: View {
                 Group {
                     // 校准按钮 - 只在校准模式显示
                     if mode == .calibration {
-                        Button("开始校准(deprecated)") {
+                        Button("开始校准") {
                             if let vc = self.getRootViewController() {
                                 checkCameraPermissionAndStartCalibration(presentingViewController: vc)
                             } else {
@@ -284,8 +290,6 @@ struct ContentView: View {
                         .padding()
                         .background(Color.red)
                         .cornerRadius(10)
-                        .disabled(true)
-                        .opacity(0.5)
                         
                         // 快捷跳转到Gaze Track按钮 - 只在校准完成后显示
                         if calibrationManager.calibrationCompleted {
@@ -938,6 +942,8 @@ struct ContentView: View {
         }
     }
 }
+
+// GridOverlayView is imported from EyeTrackingLabView
 
 #if DEBUG
 struct ContentView_Previews: PreviewProvider {

@@ -242,7 +242,6 @@ struct GridOverlayView: View {
                 }
             }
         }
-        .ignoresSafeArea()
     }
 }
 

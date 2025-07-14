@@ -84,8 +84,8 @@ class CustomARView: ARView, ARSessionDelegate {
             calibrationManager.collectGazeVector(from:faceAnchor)
         }
         
-        // 更新lookAtPoint用于校准和测量模式（无论是否在追踪模式下都需要基础的gaze point）
-        if !eyeGazeActive || (eyeGazeActive && !calibrationManager.calibrationCompleted) || calibrationManager.isCalibrating {
+        // 更新lookAtPoint用于校准和测量模式，或当校准未完成时的基础追踪
+        if !eyeGazeActive || !calibrationManager.calibrationCompleted || calibrationManager.isCalibrating {
             updateDetectGazePoint(faceAnchor: faceAnchor)
         }
         
@@ -245,6 +245,42 @@ class CustomARView: ARView, ARSessionDelegate {
             self.lookAtPoint = finalFocusPoint
         }
     }
+    // 使用校准模型更新gaze点（网格校准）
+    func updateDetectGazePointAfterCalibration(faceAnchor: ARFaceAnchor, predictedPoint: CGPoint) {
+        let rawFocusPoint = predictedPoint
+        
+        // 在gaze tracking模式和测量模式下都应用平滑处理
+        let finalFocusPoint: CGPoint
+        if eyeGazeActive && calibrationManager.calibrationCompleted {
+            // Gaze tracking模式：始终应用平滑
+            finalFocusPoint = applySmoothing(rawPoint: rawFocusPoint)
+            
+            #if DEBUG
+            if arc4random_uniform(300) == 0 {
+                let distance = sqrt(pow(finalFocusPoint.x - rawFocusPoint.x, 2) + pow(finalFocusPoint.y - rawFocusPoint.y, 2))
+                print("🔬 [GRID TRACKING] 网格校准+平滑: 距离差:\(String(format: "%.1f", distance))pt")
+            }
+            #endif
+        } else if measurementManager.isMeasuring || measurementManager.isTrajectoryMeasuring {
+            // 测量模式：也应用平滑
+            finalFocusPoint = applySmoothing(rawPoint: rawFocusPoint)
+            
+            #if DEBUG
+            if arc4random_uniform(300) == 0 {
+                print("📏 [GRID MEASUREMENT] 网格校准+平滑应用")
+            }
+            #endif
+        } else {
+            // 校准模式或其他：不应用平滑
+            finalFocusPoint = rawFocusPoint
+        }
+        
+        // 更新注视点
+        DispatchQueue.main.async {
+            self.lookAtPoint = finalFocusPoint
+        }
+    }
+    
     func updateDetectGazePointAfterCalibration(faceAnchor: ARFaceAnchor,overrideLookAtPoint: SIMD3<Float>){
         let rawFocusPoint = detectGazePointAfterCalibration(faceAnchor: faceAnchor,overrideLookAtPoint: overrideLookAtPoint)
         

@@ -57,10 +57,12 @@ All managers follow the `ObservableObject` pattern with `@Published` properties:
 - **ME (Mean Euclidean) Display**: Results shown in centimeters and visual accuracy analysis
 
 #### Calibration Mode
-- **Enhanced 5-Point Calibration**: Center + 4 corners with dual-phase collection
-- **Adaptive Collection**: 3-second initial data collection + 3-second alignment verification
-- **Auto-Validation**: 50pt proximity check for calibration point alignment
-- **Gaussian-Weighted Correction**: Spatial interpolation using all calibration vectors
+- **28-Zone Grid Calibration**: 7×4 grid system (A-Z, #, @) with comprehensive screen coverage
+- **Piecewise Linear Interpolation**: Zone-based linear mapping for robust accuracy
+- **Adaptive Collection**: 3-second data collection per zone with automatic progression
+- **Auto-Validation**: Minimum 3 gaze vectors per zone for stable linear mapping
+- **Least-Squares Optimization**: Per-zone linear coefficients (6 parameters: screenX/Y = a*u + b*v + c)
+- **Robust Zone Matching**: Best-fit zone selection based on gaze vector similarity
 
 #### Eye Tracking Lab Mode
 - **Multi-Method Comparison**: Three different eye tracking approaches for accuracy comparison
