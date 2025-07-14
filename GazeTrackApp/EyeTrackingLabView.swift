@@ -39,9 +39,9 @@ enum EyeTrackingMethod: CaseIterable {
     }
 }
 
-struct DoubleEyesTrackView: View {
+struct EyeTrackingLabView: View {
     @Binding var currentView: AppView
-    @StateObject private var doubleEyesManager = DoubleEyesTrackManager()
+    @StateObject private var labManager = EyeTrackingLabManager()
     @StateObject private var uiManager = UIManager()
     @State private var smoothingWindowSize: Int = 10 // 默认10点窗口
     @State private var currentMethod: EyeTrackingMethod = .dualEyesHitTest // 当前追踪方法
@@ -49,7 +49,7 @@ struct DoubleEyesTrackView: View {
     var body: some View {
         ZStack {
             // AR View Container
-            DoubleEyesARViewContainer(manager: doubleEyesManager, smoothingWindowSize: $smoothingWindowSize, trackingMethod: $currentMethod)
+            EyeTrackingLabARViewContainer(manager: labManager, smoothingWindowSize: $smoothingWindowSize, trackingMethod: $currentMethod)
                 .ignoresSafeArea()
                 .onTapGesture {
                     uiManager.showButtons = true
@@ -91,7 +91,7 @@ struct DoubleEyesTrackView: View {
                     Spacer()
                     
                     Button(action: {
-                        doubleEyesManager.resetTracking()
+                        labManager.resetTracking()
                         uiManager.resetButtonHideTimer()
                     }) {
                         Image(systemName: "arrow.clockwise")
@@ -118,7 +118,7 @@ struct DoubleEyesTrackView: View {
                         get: { Double(smoothingWindowSize) },
                         set: { 
                             smoothingWindowSize = Int($0)
-                            doubleEyesManager.updateSmoothingWindowSize(smoothingWindowSize)
+                            labManager.updateSmoothingWindowSize(smoothingWindowSize)
                         }
                     ), in: 0.0...50.0, step: 1.0, onEditingChanged: { editing in
                         if editing {
@@ -147,43 +147,43 @@ struct DoubleEyesTrackView: View {
                 .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
                 
                 // 距离显示组件
-                EyeToScreenDistanceView(distance: doubleEyesManager.currentEyeToScreenDistance)
+                EyeToScreenDistanceView(distance: labManager.currentEyeToScreenDistance)
                     .padding()
                     .opacity(uiManager.showButtons ? 1 : 0)
                     .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
             }
             
             // Average gaze indicator only
-            if doubleEyesManager.isTracking {
+            if labManager.isTracking {
                 GeometryReader { geometry in
                     // 直接使用gaze点坐标，无需添加safe area offset
                     // 这与原有gaze track的显示方式保持一致
                     Circle()
                         .fill(Color.green.opacity(0.8))
                         .frame(width: 25, height: 25)
-                        .position(x: doubleEyesManager.averageGaze.x, y: doubleEyesManager.averageGaze.y)
+                        .position(x: labManager.averageGaze.x, y: labManager.averageGaze.y)
                 }
             }
         }
         .onAppear {
-            doubleEyesManager.startTracking()
+            labManager.startTracking()
             // 设置初始窗口大小
-            doubleEyesManager.updateSmoothingWindowSize(smoothingWindowSize)
+            labManager.updateSmoothingWindowSize(smoothingWindowSize)
             // 启动UI自动隐藏计时器
             uiManager.showButtons = true
             uiManager.setupButtonHideTimer()
         }
         .onDisappear {
-            doubleEyesManager.stopTracking()
+            labManager.stopTracking()
             uiManager.cleanup()
         }
     }
 }
 
 #if DEBUG
-struct DoubleEyesTrackView_Previews: PreviewProvider {
+struct EyeTrackingLabView_Previews: PreviewProvider {
     static var previews: some View {
-        DoubleEyesTrackView(currentView: .constant(.doubleEyesTrack))
+        EyeTrackingLabView(currentView: .constant(.doubleEyesTrack))
     }
 }
 #endif

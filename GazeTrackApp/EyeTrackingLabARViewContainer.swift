@@ -2,24 +2,24 @@ import SwiftUI
 import SceneKit
 import ARKit
 
-struct DoubleEyesARViewContainer: UIViewRepresentable {
-    let manager: DoubleEyesTrackManager
+struct EyeTrackingLabARViewContainer: UIViewRepresentable {
+    let manager: EyeTrackingLabManager
     @Binding var smoothingWindowSize: Int
     @Binding var trackingMethod: EyeTrackingMethod
     
-    func makeUIView(context: Context) -> DoubleEyesARSCNView {
-        let arView = DoubleEyesARSCNView(manager: manager, smoothingWindowSize: smoothingWindowSize, trackingMethod: trackingMethod)
+    func makeUIView(context: Context) -> EyeTrackingLabARSCNView {
+        let arView = EyeTrackingLabARSCNView(manager: manager, smoothingWindowSize: smoothingWindowSize, trackingMethod: trackingMethod)
         return arView
     }
     
-    func updateUIView(_ uiView: DoubleEyesARSCNView, context: Context) {
+    func updateUIView(_ uiView: EyeTrackingLabARSCNView, context: Context) {
         uiView.updateSmoothingWindowSize(smoothingWindowSize)
         uiView.updateTrackingMethod(trackingMethod)
     }
 }
 
-class DoubleEyesARSCNView: ARSCNView, ARSCNViewDelegate {
-    private let manager: DoubleEyesTrackManager
+class EyeTrackingLabARSCNView: ARSCNView, ARSCNViewDelegate {
+    private let manager: EyeTrackingLabManager
     private let configuration = ARFaceTrackingConfiguration()
     
     // 缓存Device配置，避免在后台线程访问
@@ -83,7 +83,7 @@ class DoubleEyesARSCNView: ARSCNView, ARSCNViewDelegate {
     private let gazeSmoothing: SimpleGazeSmoothing
     private var currentTrackingMethod: EyeTrackingMethod
     
-    init(manager: DoubleEyesTrackManager, smoothingWindowSize: Int, trackingMethod: EyeTrackingMethod) {
+    init(manager: EyeTrackingLabManager, smoothingWindowSize: Int, trackingMethod: EyeTrackingMethod) {
         self.manager = manager
         self.gazeSmoothing = SimpleGazeSmoothing(windowSize: smoothingWindowSize)
         self.currentTrackingMethod = trackingMethod
@@ -368,7 +368,7 @@ class DoubleEyesARSCNView: ARSCNView, ARSCNViewDelegate {
 }
 
 // MARK: - ARSCNViewDelegate
-extension DoubleEyesARSCNView {
+extension EyeTrackingLabARSCNView {
     
     func renderer(_ renderer: SCNSceneRenderer, nodeFor anchor: ARAnchor) -> SCNNode? {
         guard let device = device else {
