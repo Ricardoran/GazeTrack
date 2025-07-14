@@ -33,11 +33,12 @@ xcodebuild -project GazeTrackApp.xcodeproj -scheme GazeTrackApp -destination 'pl
 ### Key Manager Classes
 All managers follow the `ObservableObject` pattern with `@Published` properties:
 
-1. **CalibrationManager** (`CalibrationManager.swift`): 5-point calibration with gaussian-weighted correction
-2. **TrajectoryManager** (`TrajectoryManager.swift`): 60Hz gaze data recording and CSV export
-3. **VideoManager** (`VideoManager.swift`): Video playback with adjustable opacity during tracking
-4. **UIManager** (`UIManager.swift`): UI state management and button visibility timers
-5. **MeasurementManager** (`MeasurementManager.swift`): Accuracy measurement and 8-figure trajectory tracking
+1. **CalibrationManager** (`Core/Managers/CalibrationManager.swift`): 5-point calibration with gaussian-weighted correction
+2. **TrajectoryManager** (`Core/Managers/TrajectoryManager.swift`): 60Hz gaze data recording and CSV export
+3. **VideoManager** (`Core/Managers/VideoManager.swift`): Video playback with adjustable opacity during tracking
+4. **UIManager** (`Core/Managers/UIManager.swift`): UI state management and button visibility timers
+5. **MeasurementManager** (`Core/Managers/MeasurementManager.swift`): Accuracy measurement and 8-figure trajectory tracking
+6. **EyeTrackingLabManager** (`Core/Managers/EyeTrackingLabManager.swift`): Multi-method eye tracking comparison and analysis
 
 ### Application Modes
 
@@ -61,24 +62,43 @@ All managers follow the `ObservableObject` pattern with `@Published` properties:
 - **Auto-Validation**: 50pt proximity check for calibration point alignment
 - **Gaussian-Weighted Correction**: Spatial interpolation using all calibration vectors
 
-### Core Views
-- **ContentView.swift**: Main UI container with all controls and overlays
-- **ARViewContainer.swift**: UIViewRepresentable wrapper for CustomARView
-- **CustomARView**: ARView subclass handling face tracking and coordinate transformations
-- **SimpleGazeSmoothing.swift**: Lightweight sliding window smoothing algorithm
-- **TrajectoryComparisonView.swift**: Visual comparison of target vs actual gaze trajectories
+#### Eye Tracking Lab Mode
+- **Multi-Method Comparison**: Three different eye tracking approaches for accuracy comparison
+- **Method Switching**: Real-time switching between dual eyes+hitTest, lookAtPoint+matrix, and lookAtPoint+hitTest
+- **Visual Feedback**: Color-coded gaze points (orange, blue, purple) matching tracking method
+- **Grid Overlay**: 28-zone grid (A-Z, #, @) for precision testing and quick accuracy assessment
+- **Simple Smoothing**: Adjustable window size (0-50 points) with real-time response vs stability control
+- **Distance Monitoring**: Live eye-to-screen distance display for optimal tracking conditions
+
+### Core Views and Components
+- **App/MainAppView.swift**: Main application entry and view navigation
+- **App/LandingPageView.swift**: Home screen with feature selection
+- **Features/GazeTrack/ContentView.swift**: Main gaze tracking UI container with all controls and overlays
+- **Features/EyeTrackingLab/EyeTrackingLabView.swift**: Multi-method comparison interface with grid overlay
+- **Features/GazeTrack/TrajectoryComparisonView.swift**: Visual comparison of target vs actual gaze trajectories
+- **Core/AR/ARViewContainer.swift**: UIViewRepresentable wrapper for CustomARView
+- **Core/AR/EyeTrackingLabARViewContainer.swift**: Multi-method AR tracking container
+- **Core/Algorithms/SimpleGazeSmoothing.swift**: Lightweight sliding window smoothing algorithm
 
 ### Data Flow Architecture
 ```
-ARKit Face Tracking → ARViewContainer → SimpleGazeSmoothing → Manager Classes → UI Updates
-                                    ↓
-                              CalibrationManager (calibration mode)
-                                    ↓
-                              TrajectoryManager (recording mode)
-                                    ↓
-                              MeasurementManager (8-figure analysis)
-                                    ↓
-                              CSV Export via ActivityViewController
+ARKit Face Tracking → AR Containers → SimpleGazeSmoothing → Manager Classes → UI Updates
+                           ↓
+                    EyeTrackingLabARViewContainer (lab mode)
+                           ↓
+                    Multi-method tracking (dual eyes+hitTest, lookAtPoint+matrix, lookAtPoint+hitTest)
+                           ↓
+                    EyeTrackingLabManager → Color-coded gaze display
+
+                    ARViewContainer (main gaze track)
+                           ↓
+                    CalibrationManager (calibration mode)
+                           ↓
+                    TrajectoryManager (recording mode)
+                           ↓
+                    MeasurementManager (8-figure analysis)
+                           ↓
+                    CSV Export via ActivityViewController
 ```
 
 ### Coordinate System Handling
@@ -120,20 +140,51 @@ Lightweight and efficient smoothing system optimized for real-time performance:
 
 ## File Structure Patterns
 
-### Main Source Directory (`GazeTrackApp/`)
-- **App entry**: `GazeTrackAppApp.swift`
-- **Managers**: Individual manager classes for each major feature
-- **Core Components**: `SimpleGazeSmoothing.swift`, `TrajectoryComparisonView.swift`
-- **Utils**: `Utils.swift` contains extensions and utility functions
-- **Assets**: Icons and resources in `Assets.xcassets/`
-- **Sample content**: `.mov` files for video testing
+### Organized Project Structure
+```
+GazeTrackApp/
+├── App/                          # Application entry layer
+│   ├── GazeTrackAppApp.swift     # Main app entry point
+│   ├── MainAppView.swift         # Root view navigation
+│   └── LandingPageView.swift     # Home screen interface
+├── Core/                         # Core functionality layer
+│   ├── Managers/                 # Business logic managers
+│   │   ├── CalibrationManager.swift
+│   │   ├── TrajectoryManager.swift
+│   │   ├── MeasurementManager.swift
+│   │   ├── VideoManager.swift
+│   │   ├── UIManager.swift
+│   │   └── EyeTrackingLabManager.swift
+│   ├── AR/                       # ARKit integration
+│   │   ├── ARViewContainer.swift
+│   │   └── EyeTrackingLabARViewContainer.swift
+│   ├── Algorithms/               # Processing algorithms
+│   │   └── SimpleGazeSmoothing.swift
+│   └── Utils/                    # Utility functions
+│       └── Utils.swift
+├── Features/                     # Feature modules
+│   ├── GazeTrack/               # Main tracking interface
+│   │   ├── ContentView.swift
+│   │   └── TrajectoryComparisonView.swift
+│   ├── EyeTrackingLab/          # Multi-method comparison
+│   │   └── EyeTrackingLabView.swift
+│   ├── Calibration/             # Calibration features
+│   └── Measurement/             # Measurement tools
+├── Resources/                    # Assets and media
+│   ├── Assets.xcassets/
+│   ├── horizon.mov
+│   └── test.mov
+└── Supporting Files/             # Configuration
+    ├── Info.plist
+    └── Preview Content/
+```
 
-### Key Files
-- `CalibrationManager.swift`: Enhanced dual-phase calibration with auto-validation
-- `MeasurementManager.swift`: 8-figure trajectory measurement with ME error analysis
-- `SimpleGazeSmoothing.swift`: Lightweight sliding window smoothing algorithm
-- `ContentView.swift`: Main UI with simplified smoothing controls
-- `ARViewContainer.swift`: Core AR functionality with integrated smoothing
+### Key Components
+- **EyeTrackingLabManager.swift**: Multi-method eye tracking comparison with real-time method switching
+- **EyeTrackingLabView.swift**: Lab interface with grid overlay and color-coded gaze points
+- **GridOverlayView**: 28-zone grid (A-Z, #, @) for precision testing
+- **SimpleGazeSmoothing.swift**: Lightweight sliding window smoothing algorithm
+- **Utils.swift**: Thread-safe device utilities and coordinate transformations
 
 ### Project Configuration
 - **Bundle ID**: `haoranzh.GazeTrackApp`
