@@ -4,11 +4,12 @@ struct DoubleEyesTrackView: View {
     @Binding var currentView: AppView
     @StateObject private var doubleEyesManager = DoubleEyesTrackManager()
     @State private var smoothingWindowSize: Int = 10 // 默认10点窗口
+    @State private var useLookAtPointMethod: Bool = false // 是否使用lookAtPoint+hitTest方法
     
     var body: some View {
         ZStack {
             // AR View Container
-            DoubleEyesARViewContainer(manager: doubleEyesManager, smoothingWindowSize: $smoothingWindowSize)
+            DoubleEyesARViewContainer(manager: doubleEyesManager, smoothingWindowSize: $smoothingWindowSize, useLookAtPointMethod: $useLookAtPointMethod)
                 .ignoresSafeArea()
             
             VStack {
@@ -28,6 +29,19 @@ struct DoubleEyesTrackView: View {
                         .cornerRadius(10)
                     
                     Spacer()
+                    
+                    // 方法切换按钮
+                    Button(action: {
+                        useLookAtPointMethod.toggle()
+                    }) {
+                        Text(useLookAtPointMethod ? "L+H" : "D+H")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .padding(8)
+                            .background(useLookAtPointMethod ? Color.blue.opacity(0.8) : Color.orange.opacity(0.8))
+                            .clipShape(Circle())
+                    }
                     
                     Button(action: {
                         doubleEyesManager.resetTracking()
@@ -116,6 +130,18 @@ struct DoubleEyesTrackView: View {
                         Text("X: \(String(format: "%.1f", doubleEyesManager.averageGaze.x)), Y: \(String(format: "%.1f", doubleEyesManager.averageGaze.y))")
                             .font(.caption2)
                             .foregroundColor(.white)
+                    }
+                    
+                    HStack {
+                        Text("方法")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                        
+                        Spacer()
+                        
+                        Text(useLookAtPointMethod ? "lookAtPoint + hitTest" : "双眼分别 + hitTest")
+                            .font(.caption2)
+                            .foregroundColor(useLookAtPointMethod ? .blue : .orange)
                     }
                 }
                 .padding()
