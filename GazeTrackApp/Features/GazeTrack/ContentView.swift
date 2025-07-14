@@ -177,7 +177,7 @@ struct ContentView: View {
                 }
             }
 
-            // Back button - 使用与其他按钮一致的隐藏逻辑
+            // Top header with back button and compact action buttons
             VStack {
                 HStack {
                     BackButton(action: {
@@ -188,18 +188,83 @@ struct ContentView: View {
                         eyeGazeActive = false
                         currentView = .landing
                     })
-                    .padding()
                     
                     Spacer()
+                    
+                    // Compact header buttons - only in gaze track mode
+                    if mode == .gazeTrack {
+                        HStack(spacing: 8) {
+                            // Video/Camera toggle button
+                            Button(action: {
+                                videoManager.toggleVideoMode()
+                                uiManager.resetButtonHideTimer()
+                            }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: videoManager.videoMode ? "camera" : "video")
+                                    Text(videoManager.videoMode ? "Cam" : "Video")
+                                }
+                                .font(.caption)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color.purple.opacity(0.8))
+                                .cornerRadius(8)
+                            }
+                            
+                            // Export trajectory button
+                            Button(action: {
+                                handleExportTrajectory()
+                                uiManager.resetButtonHideTimer()
+                            }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "square.and.arrow.up")
+                                    Text("Export")
+                                }
+                                .font(.caption)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color.green.opacity(0.8))
+                                .cornerRadius(8)
+                                .opacity((eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory()) ? 0.5 : 1.0)
+                            }
+                            .disabled(eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory())
+                            
+                            // Visualize trajectory button
+                            Button(action: {
+                                trajectoryManager.showTrajectoryView.toggle()
+                                uiManager.resetButtonHideTimer()
+                            }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "chart.line.uptrend.xyaxis")
+                                    Text("View")
+                                }
+                                .font(.caption)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color.orange.opacity(0.8))
+                                .cornerRadius(8)
+                                .opacity((eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory()) ? 0.5 : 1.0)
+                            }
+                            .disabled(eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory())
+                        }
+                    }
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+                
                 Spacer()
             }
             .opacity(uiManager.showButtons ? 1 : 0)
             .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
             .zIndex(1000)
             
-            // 按钮组 - 根据模式显示不同按钮
-            VStack(spacing: 20) {
+            // 中心按钮区域 - 根据模式显示不同按钮
+            VStack {
+                Spacer()
+                
+                VStack(spacing: 20) {
                 Group {
                     // 校准按钮 - 只在校准模式显示
                     if mode == .calibration {
@@ -280,82 +345,20 @@ struct ContentView: View {
                         .cornerRadius(10)
                         .disabled(measurementManager.isMeasuring) // 静态测量时禁用
                     }
-                    
-                    // 视频模式切换按钮 - 只在眼动追踪模式显示
-                    if mode == .gazeTrack {
-                        Button(action: {
-                            videoManager.toggleVideoMode()
-                            uiManager.resetButtonHideTimer()
-                        }) {
-                            Text(videoManager.videoMode ? "相机" : "视频")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .padding()
-                                .background(Color.purple)
-                                .cornerRadius(10)
-                        }
-                    }
-                    
-                    
-                        
-                    // 开始/停止按钮 - 只在眼动追踪模式显示
-                    if mode == .gazeTrack {
-                        Button(action: {
-                            if let vc = self.getRootViewController() {
-                                self.checkCameraPermissionAndStartGazeTrack(presentingViewController: vc)
-                            } else {
-                                handleStartStop()
-                            }
-                            uiManager.resetButtonHideTimer()
-                        }) {
-                            Text(eyeGazeActive ? "停止" : "开始")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .padding()
-                                .background(Color.blue)
-                                .cornerRadius(10)
-                        }
-                        
-                        // Export Trajectory Button - only in gaze track mode
-                        Button(action: {
-                            handleExportTrajectory()
-                            uiManager.resetButtonHideTimer()
-                        }) {
-                            Text("Export Trajectory")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .padding()
-                                .background(Color.green)
-                                .cornerRadius(10)
-                                .opacity((eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory()) ? 0.5 : 1.0)
-                        }
-                        .disabled(eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory())
-                        
-                        // Visualize Trajectory Button - only in gaze track mode
-                        Button(action: {
-                            trajectoryManager.showTrajectoryView.toggle()
-                            uiManager.resetButtonHideTimer()
-                        }) {
-                            Text("Visualize Trajectory")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .padding()
-                                .background(Color.orange)
-                                .cornerRadius(10)
-                                .opacity((eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory()) ? 0.5 : 1.0)
-                        }
-                        .disabled(eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory())
-                    }
-                    
                 }
-                .opacity(uiManager.showButtons ? 1 : 0)
+                }
+                
+                Spacer()
+                Spacer() // 额外的spacer为底部滑块留出空间
             }
-            .padding(.bottom, 120) // 增加底部空间给slider区域
             .opacity(uiManager.showButtons ? 1 : 0)
             .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
             
-            // 滑块组 - 位于屏幕底部，统一管理所有滑块
-            VStack(spacing: 8) {
+            // 底部滑块组 - 位于屏幕底部，统一管理所有滑块
+            VStack {
+                Spacer()
+                
+                VStack(spacing: 8) {
                 // 视频透明度滑块（仅在视频模式下显示，且在眼动追踪模式）
                 if videoManager.videoMode && mode == .gazeTrack {
                     VStack(alignment: .leading, spacing: 5) {
@@ -388,7 +391,7 @@ struct ContentView: View {
                         
                         Slider(value: Binding(
                             get: { Double(smoothingWindowSize) },
-                            set: { 
+                            set: {
                                 smoothingWindowSize = Int($0)
                                 arView?.resetSmoothingFilter() // 窗口大小变化时重置
                             }
@@ -416,10 +419,51 @@ struct ContentView: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
                 }
+                
+                // iPhone风格圆环开始/停止按钮 - 只在眼动追踪模式显示
+                if mode == .gazeTrack {
+                    HStack {
+                        Spacer()
+                        
+                        Button(action: {
+                            if let vc = self.getRootViewController() {
+                                self.checkCameraPermissionAndStartGazeTrack(presentingViewController: vc)
+                            } else {
+                                handleStartStop()
+                            }
+                            uiManager.resetButtonHideTimer()
+                        }) {
+                            ZStack {
+                                // 外圈
+                                Circle()
+                                    .stroke(Color.white, lineWidth: 4)
+                                    .frame(width: 70, height: 70)
+                                
+                                // 内圈
+                                Circle()
+                                    .fill(eyeGazeActive ? Color.red : Color.white)
+                                    .frame(width: eyeGazeActive ? 40 : 60, height: eyeGazeActive ? 40 : 60)
+                                
+                                // 停止状态显示方形
+                                if eyeGazeActive {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color.white)
+                                        .frame(width: 20, height: 20)
+                                }
+                            }
+                            .scaleEffect(eyeGazeActive ? 1.1 : 1.0)
+                            .animation(.easeInOut(duration: 0.2), value: eyeGazeActive)
+                        }
+                        
+                        Spacer()
+                    }
+                    .padding(.top, 15)
+                }
+                }
+                .padding(.bottom, 20)
+                .opacity(uiManager.showButtons ? 1 : 0)
+                .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
             }
-            .padding(.bottom, 20)
-            .opacity(uiManager.showButtons ? 1 : 0)
-            .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
 
             // 轨迹可视化视图
             if trajectoryManager.showTrajectoryView && !trajectoryManager.gazeTrajectory.isEmpty {

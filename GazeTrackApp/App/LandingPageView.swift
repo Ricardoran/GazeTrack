@@ -74,12 +74,12 @@ struct LandingPageView: View {
                         .cornerRadius(15)
                     }
                     
-                    // Double Eyes Track Button
+                    // Eye Tracking Lab Button
                     Button(action: {
                         currentView = .doubleEyesTrack
                     }) {
                         HStack {
-                            Image(systemName: "eye.trianglebadge.exclamationmark")
+                            Image(systemName: "flask")
                                 .font(.title2)
                             Text("Eye Tracking Lab")
                                 .font(.headline)
