@@ -180,23 +180,14 @@ struct ContentView: View {
             // Back button - 使用与其他按钮一致的隐藏逻辑
             VStack {
                 HStack {
-                    Button(action: {
+                    BackButton(action: {
                         // Stop any ongoing calibration or measurement process
                         calibrationManager.stopCalibration()
                         measurementManager.stopMeasurement()
                         measurementManager.stopTrajectoryMeasurement()  // 停止8字形测量
                         eyeGazeActive = false
                         currentView = .landing
-                    }) {
-                        HStack {
-                            Image(systemName: "chevron.left")
-                            Text("Back")
-                        }
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(Color.black.opacity(0.7))
-                        .cornerRadius(10)
-                    }
+                    })
                     .padding()
                     
                     Spacer()
@@ -388,58 +379,41 @@ struct ContentView: View {
                     .padding(.vertical, 5)
                 }
                 
-                // 简单平滑控制滑块 - 在眼动追踪和测量模式下显示
+                // 简化的平滑控制滑块
                 if mode == .gazeTrack || mode == .measurement {
-                    VStack(alignment: .leading, spacing: 5) {
-                        // 平滑标题
-                        HStack {
-                            Text("简单平滑: \(smoothingWindowSize)点")
-                                .font(.subheadline)
-                                .foregroundColor(.white)
-                                .fontWeight(.medium)
-                            
-                            Spacer()
-                            
-                            Text("🎯 抗抖动")
-                                .font(.caption2)
-                                .foregroundColor(.green)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.green.opacity(0.2))
-                                .cornerRadius(8)
-                        }
-                        .padding(8)
-                        .background(Color.black.opacity(0.6))
-                        .cornerRadius(5)
+                    HStack {
+                        Text("响应")
+                            .font(.caption2)
+                            .foregroundColor(.white.opacity(0.7))
                         
-                        // 平滑窗口大小控制
-                        HStack {
-                            Text("响应")
-                                .font(.caption2)
-                                .foregroundColor(.white.opacity(0.7))
-                            
-                            Slider(value: Binding(
-                                get: { Double(smoothingWindowSize) },
-                                set: { 
-                                    smoothingWindowSize = Int($0)
-                                    arView?.resetSmoothingFilter() // 窗口大小变化时重置
-                                }
-                            ), in: 0.0...50.0, step: 1.0, onEditingChanged: { editing in
-                                if editing {
-                                    uiManager.resetButtonHideTimer()
-                                }
-                            })
-                            .accentColor(.green)
-                            
-                            Text("稳定")
-                                .font(.caption2)
-                                .foregroundColor(.white.opacity(0.7))
-                        }
-                        .padding(.horizontal)
-                        .background(Color.black.opacity(0.6))
-                        .cornerRadius(10)
-                        .padding(.horizontal, 10)
+                        Slider(value: Binding(
+                            get: { Double(smoothingWindowSize) },
+                            set: { 
+                                smoothingWindowSize = Int($0)
+                                arView?.resetSmoothingFilter() // 窗口大小变化时重置
+                            }
+                        ), in: 0.0...50.0, step: 1.0, onEditingChanged: { editing in
+                            if editing {
+                                uiManager.resetButtonHideTimer()
+                            }
+                        })
+                        .accentColor(.green)
+                        
+                        Text("\(smoothingWindowSize)")
+                            .font(.caption2)
+                            .foregroundColor(.white)
+                            .fontWeight(.medium)
+                            .frame(minWidth: 20)
+                        
+                        Text("稳定")
+                            .font(.caption2)
+                            .foregroundColor(.white.opacity(0.7))
                     }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .background(Color.black.opacity(0.6))
+                    .cornerRadius(10)
+                    .padding(.horizontal, 10)
                     .padding(.vertical, 5)
                 }
             }

@@ -45,3 +45,20 @@ class UIManager: ObservableObject {
         setupButtonHideTimer()
     }
 }
+
+// MARK: - UI Components
+
+struct BackButton: View {
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "arrow.left")
+                .font(.title2)
+                .foregroundColor(.white)
+                .padding()
+                .background(Color.black.opacity(0.6))
+                .clipShape(Circle())
+        }
+    }
+}

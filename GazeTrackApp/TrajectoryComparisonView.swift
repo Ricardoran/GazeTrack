@@ -39,13 +39,9 @@ struct TrajectoryComparisonView: View {
                     .padding(.top, 10)
                     
                     HStack {
-                        Button("返回结果页面") {
+                        BackButton(action: {
                             showVisualization = false
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 8)
-                        .background(Color.red.opacity(0.2))
-                        .cornerRadius(8)
+                        })
                         
                         Spacer()
                         

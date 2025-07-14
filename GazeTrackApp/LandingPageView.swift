@@ -74,6 +74,23 @@ struct LandingPageView: View {
                         .cornerRadius(15)
                     }
                     
+                    // Double Eyes Track Button
+                    Button(action: {
+                        currentView = .doubleEyesTrack
+                    }) {
+                        HStack {
+                            Image(systemName: "eyes")
+                                .font(.title2)
+                            Text("Double Eyes Track")
+                                .font(.headline)
+                        }
+                        .foregroundColor(.white)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.green)
+                        .cornerRadius(15)
+                    }
+                    
                 }
                 .padding(.horizontal, 30)
                 
@@ -95,6 +112,7 @@ enum AppView {
     case measurement
     case gazeTrack
     case gazeTrackAutoStart // 新增：自动启动的gaze track模式
+    case doubleEyesTrack // 新增：双眼分别追踪模式
 }
 
 #if DEBUG
