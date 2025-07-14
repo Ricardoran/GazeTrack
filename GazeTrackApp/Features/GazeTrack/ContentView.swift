@@ -592,34 +592,22 @@ struct ContentView: View {
                                 .fontWeight(.bold)
                                 .foregroundColor(.white)
                             
-                            // ME(Mean Euclidean)显示 - 突出显示
-                            VStack(spacing: 8) {
-                                Text("ME(Mean Euclidean): \(String(format: "%.4f", results.meanEuclideanErrorInCM)) (CM)")
-                                    .font(.subheadline)
-                                    .foregroundColor(.white)
-                                    .fontWeight(.bold)
-                                
-                                Text("Data size: \(results.dataSize)")
-                                    .font(.subheadline)
-                                    .foregroundColor(.white)
-                                    .fontWeight(.bold)
-                            }
-                            .padding()
-                            .background(Color.blue.opacity(0.3))
-                            .cornerRadius(10)
-                            
                             // 统计信息
                             VStack(alignment: .leading, spacing: 10) {
-                                Text("📊 详细统计数据")
+                                Text("📊 统计数据")
                                     .font(.headline)
                                     .foregroundColor(.white)
                                     .fontWeight(.bold)
-                                
-                                Text("平均误差: \(String(format: "%.1f", results.averageError)) pt")
+
+                                Text("Mean Euclidean: \(String(format: "%.4f", results.meanEuclideanErrorInCM)) (CM)")
                                     .foregroundColor(.white)
-                                Text("最大误差: \(String(format: "%.1f", results.maxError)) pt")
+                                Text("Data size: \(results.dataSize)")
                                     .foregroundColor(.white)
-                                Text("最小误差: \(String(format: "%.1f", results.minError)) pt")
+                                Text("平均误差pt: \(String(format: "%.1f", results.averageError)) pt")
+                                    .foregroundColor(.white)
+                                Text("最大误差pt: \(String(format: "%.1f", results.maxError)) pt")
+                                    .foregroundColor(.white)
+                                Text("最小误差pt: \(String(format: "%.1f", results.minError)) pt")
                                     .foregroundColor(.white)
                                 Text("测量时长: \(String(format: "%.1f", results.totalDuration)) 秒")
                                     .foregroundColor(.white)
