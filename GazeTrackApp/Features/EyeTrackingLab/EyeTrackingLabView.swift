@@ -45,6 +45,7 @@ struct EyeTrackingLabView: View {
     @StateObject private var uiManager = UIManager()
     @State private var smoothingWindowSize: Int = 10 // 默认10点窗口
     @State private var currentMethod: EyeTrackingMethod = .dualEyesHitTest // 当前追踪方法
+    @State private var showGrid: Bool = false // 是否显示网格标识
     
     var body: some View {
         ZStack {
@@ -90,11 +91,12 @@ struct EyeTrackingLabView: View {
                     
                     Spacer()
                     
+                    // 网格切换按钮
                     Button(action: {
-                        labManager.resetTracking()
+                        showGrid.toggle()
                         uiManager.resetButtonHideTimer()
                     }) {
-                        Image(systemName: "arrow.clockwise")
+                        Image(systemName: showGrid ? "grid.circle.fill" : "grid.circle")
                             .font(.title2)
                             .foregroundColor(.white)
                             .padding()
@@ -102,7 +104,8 @@ struct EyeTrackingLabView: View {
                             .clipShape(Circle())
                     }
                 }
-                .padding()
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
                 .opacity(uiManager.showButtons ? 1 : 0)
                 .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
                 
@@ -153,6 +156,12 @@ struct EyeTrackingLabView: View {
                     .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
             }
             
+            // 网格覆盖层
+            if showGrid {
+                GridOverlayView()
+                    .allowsHitTesting(false) // 不阻挡AR视图的交互
+            }
+            
             // Average gaze indicator only
             if labManager.isTracking {
                 GeometryReader { geometry in
@@ -177,6 +186,63 @@ struct EyeTrackingLabView: View {
             labManager.stopTracking()
             uiManager.cleanup()
         }
+    }
+}
+
+struct GridOverlayView: View {
+    let gridLabels = [
+        ["A", "B", "C", "D"],
+        ["E", "F", "G", "H"],
+        ["I", "J", "K", "L"],
+        ["M", "N", "O", "P"],
+        ["Q", "R", "S", "T"],
+        ["U", "V", "W", "X"],
+        ["Y", "Z", "#", "@"]
+    ]
+    
+    var body: some View {
+        GeometryReader { geometry in
+            let screenWidth = geometry.size.width
+            let screenHeight = geometry.size.height
+            let cellWidth = screenWidth / 4
+            let cellHeight = screenHeight / 7
+            
+            ZStack {
+                // 绘制网格线
+                Path { path in
+                    // 垂直线
+                    for i in 1..<4 {
+                        let x = CGFloat(i) * cellWidth
+                        path.move(to: CGPoint(x: x, y: 0))
+                        path.addLine(to: CGPoint(x: x, y: screenHeight))
+                    }
+                    
+                    // 水平线
+                    for i in 1..<7 {
+                        let y = CGFloat(i) * cellHeight
+                        path.move(to: CGPoint(x: 0, y: y))
+                        path.addLine(to: CGPoint(x: screenWidth, y: y))
+                    }
+                }
+                .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                
+                // 添加标签
+                ForEach(0..<7, id: \.self) { row in
+                    ForEach(0..<4, id: \.self) { col in
+                        let label = gridLabels[row][col]
+                        let x = CGFloat(col) * cellWidth + cellWidth/2
+                        let y = CGFloat(row) * cellHeight + cellHeight/2
+                        
+                        Text(label)
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white.opacity(0.7))
+                            .position(x: x, y: y)
+                    }
+                }
+            }
+        }
+        .ignoresSafeArea()
     }
 }
 
