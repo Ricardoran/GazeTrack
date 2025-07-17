@@ -74,14 +74,14 @@ struct LandingPageView: View {
                         .cornerRadius(15)
                     }
                     
-                    // Eye Tracking Lab Button
+                    // Gaze Track Lab Button
                     Button(action: {
-                        currentView = .doubleEyesTrack
+                        currentView = .gazeTrackLab
                     }) {
                         HStack {
                             Image(systemName: "flask")
                                 .font(.title2)
-                            Text("Eye Tracking Lab")
+                            Text("Gaze Track Lab")
                                 .font(.headline)
                         }
                         .foregroundColor(.white)
@@ -112,7 +112,7 @@ enum AppView {
     case measurement
     case gazeTrack
     case gazeTrackAutoStart // 新增：自动启动的gaze track模式
-    case doubleEyesTrack // 新增：双眼分别追踪模式
+    case gazeTrackLab // 新增：双眼分别追踪模式（Gaze Track Lab）
 }
 
 #if DEBUG

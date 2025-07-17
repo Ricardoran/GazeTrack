@@ -38,7 +38,7 @@ All managers follow the `ObservableObject` pattern with `@Published` properties:
 3. **VideoManager** (`Core/Managers/VideoManager.swift`): Video playback with adjustable opacity during tracking
 4. **UIManager** (`Core/Managers/UIManager.swift`): UI state management and button visibility timers
 5. **MeasurementManager** (`Core/Managers/MeasurementManager.swift`): Accuracy measurement and 8-figure trajectory tracking
-6. **EyeTrackingLabManager** (`Core/Managers/EyeTrackingLabManager.swift`): Multi-method eye tracking comparison and analysis
+6. **GazeTrackLabManager** (`Core/Managers/GazeTrackLabManager.swift`): Multi-method eye tracking comparison and analysis
 
 ### Application Modes
 
@@ -64,7 +64,7 @@ All managers follow the `ObservableObject` pattern with `@Published` properties:
 - **Least-Squares Optimization**: Per-zone linear coefficients (6 parameters: screenX/Y = a*u + b*v + c)
 - **Robust Zone Matching**: Best-fit zone selection based on gaze vector similarity
 
-#### Eye Tracking Lab Mode
+#### Gaze Track Lab Mode
 - **Multi-Method Comparison**: Three different eye tracking approaches for accuracy comparison
 - **Method Switching**: Real-time switching between dual eyes+hitTest, lookAtPoint+matrix, and lookAtPoint+hitTest
 - **Visual Feedback**: Color-coded gaze points (orange, blue, purple) matching tracking method
@@ -76,21 +76,21 @@ All managers follow the `ObservableObject` pattern with `@Published` properties:
 - **App/MainAppView.swift**: Main application entry and view navigation
 - **App/LandingPageView.swift**: Home screen with feature selection
 - **Features/GazeTrack/ContentView.swift**: Main gaze tracking UI container with all controls and overlays
-- **Features/EyeTrackingLab/EyeTrackingLabView.swift**: Multi-method comparison interface with grid overlay
+- **Features/GazeTrackLab/GazeTrackLabView.swift**: Multi-method comparison interface with grid overlay
 - **Features/GazeTrack/TrajectoryComparisonView.swift**: Visual comparison of target vs actual gaze trajectories
 - **Core/AR/ARViewContainer.swift**: UIViewRepresentable wrapper for CustomARView
-- **Core/AR/EyeTrackingLabARViewContainer.swift**: Multi-method AR tracking container
+- **Core/AR/GazeTrackLabARViewContainer.swift**: Multi-method AR tracking container
 - **Core/Algorithms/SimpleGazeSmoothing.swift**: Lightweight sliding window smoothing algorithm
 
 ### Data Flow Architecture
 ```
 ARKit Face Tracking → AR Containers → SimpleGazeSmoothing → Manager Classes → UI Updates
                            ↓
-                    EyeTrackingLabARViewContainer (lab mode)
+                    GazeTrackLabARViewContainer (lab mode)
                            ↓
                     Multi-method tracking (dual eyes+hitTest, lookAtPoint+matrix, lookAtPoint+hitTest)
                            ↓
-                    EyeTrackingLabManager → Color-coded gaze display
+                    GazeTrackLabManager → Color-coded gaze display
 
                     ARViewContainer (main gaze track)
                            ↓
@@ -156,10 +156,10 @@ GazeTrackApp/
 │   │   ├── MeasurementManager.swift
 │   │   ├── VideoManager.swift
 │   │   ├── UIManager.swift
-│   │   └── EyeTrackingLabManager.swift
+│   │   └── GazeTrackLabManager.swift
 │   ├── AR/                       # ARKit integration
 │   │   ├── ARViewContainer.swift
-│   │   └── EyeTrackingLabARViewContainer.swift
+│   │   └── GazeTrackLabARViewContainer.swift
 │   ├── Algorithms/               # Processing algorithms
 │   │   └── SimpleGazeSmoothing.swift
 │   └── Utils/                    # Utility functions
@@ -168,8 +168,8 @@ GazeTrackApp/
 │   ├── GazeTrack/               # Main tracking interface
 │   │   ├── ContentView.swift
 │   │   └── TrajectoryComparisonView.swift
-│   ├── EyeTrackingLab/          # Multi-method comparison
-│   │   └── EyeTrackingLabView.swift
+│   ├── GazeTrackLab/          # Multi-method comparison
+│   │   └── GazeTrackLabView.swift
 │   ├── Calibration/             # Calibration features
 │   └── Measurement/             # Measurement tools
 ├── Resources/                    # Assets and media
@@ -182,8 +182,8 @@ GazeTrackApp/
 ```
 
 ### Key Components
-- **EyeTrackingLabManager.swift**: Multi-method eye tracking comparison with real-time method switching
-- **EyeTrackingLabView.swift**: Lab interface with grid overlay and color-coded gaze points
+- **GazeTrackLabManager.swift**: Multi-method eye tracking comparison with real-time method switching
+- **GazeTrackLabView.swift**: Lab interface with grid overlay and color-coded gaze points
 - **GridOverlayView**: 28-zone grid (A-Z, #, @) for precision testing
 - **SimpleGazeSmoothing.swift**: Lightweight sliding window smoothing algorithm
 - **Utils.swift**: Thread-safe device utilities and coordinate transformations

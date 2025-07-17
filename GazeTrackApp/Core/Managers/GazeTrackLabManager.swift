@@ -2,7 +2,7 @@ import Foundation
 import CoreGraphics
 import Combine
 
-class EyeTrackingLabManager: ObservableObject {
+class GazeTrackLabManager: ObservableObject {
     @Published var leftEyeGaze: CGPoint = CGPoint.zero
     @Published var rightEyeGaze: CGPoint = CGPoint.zero
     @Published var averageGaze: CGPoint = CGPoint.zero

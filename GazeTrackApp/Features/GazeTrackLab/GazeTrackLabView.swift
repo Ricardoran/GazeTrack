@@ -8,9 +8,9 @@ enum EyeTrackingMethod: CaseIterable {
     var displayName: String {
         switch self {
         case .dualEyesHitTest:
-            return "双眼分别 + HitTest"
+            return "Binocular + HitTest"
         case .lookAtPointMatrix:
-            return "LookAt + 矩阵变换"
+            return "LookAt + Matrix"
         case .lookAtPointHitTest:
             return "LookAt + HitTest"
         }
@@ -39,9 +39,9 @@ enum EyeTrackingMethod: CaseIterable {
     }
 }
 
-struct EyeTrackingLabView: View {
+struct GazeTrackLabView: View {
     @Binding var currentView: AppView
-    @StateObject private var labManager = EyeTrackingLabManager()
+    @StateObject private var labManager = GazeTrackLabManager()
     @StateObject private var uiManager = UIManager()
     @State private var smoothingWindowSize: Int = 10 // 默认10点窗口
     @State private var currentMethod: EyeTrackingMethod = .dualEyesHitTest // 当前追踪方法
@@ -50,7 +50,7 @@ struct EyeTrackingLabView: View {
     var body: some View {
         ZStack {
             // AR View Container
-            EyeTrackingLabARViewContainer(manager: labManager, smoothingWindowSize: $smoothingWindowSize, trackingMethod: $currentMethod)
+            GazeTrackLabARViewContainer(manager: labManager, smoothingWindowSize: $smoothingWindowSize, trackingMethod: $currentMethod)
                 .ignoresSafeArea()
                 .onTapGesture {
                     uiManager.showButtons = true
@@ -77,7 +77,7 @@ struct EyeTrackingLabView: View {
                         uiManager.resetButtonHideTimer()
                     }) {
                         VStack(spacing: 2) {
-                            Text("Eye Tracking Lab")
+                            Text("Gaze Track Lab")
                                 .font(.headline)
                                 .foregroundColor(.white)
                             Text(currentMethod.displayName)
@@ -246,9 +246,9 @@ struct GridOverlayView: View {
 }
 
 #if DEBUG
-struct EyeTrackingLabView_Previews: PreviewProvider {
+struct GazeTrackLabView_Previews: PreviewProvider {
     static var previews: some View {
-        EyeTrackingLabView(currentView: .constant(.doubleEyesTrack))
+        GazeTrackLabView(currentView: .constant(.gazeTrackLab))
     }
 }
 #endif

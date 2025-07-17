@@ -6,7 +6,7 @@ The app utilizes the front-facing TrueDepth camera system on compatible iOS devi
 
 ## Features
 - **Real-time Eye Tracking**: Tracks where the user is looking on the screen with optimized smoothing
-- **Eye Tracking Lab**: Multi-method comparison with three different tracking approaches
+- **Gaze Track Lab**: Multi-method comparison with three different tracking approaches
 - **Grid Testing**: 28-zone grid overlay (A-Z, #, @) for precision testing and accuracy assessment
 - **Color-Coded Tracking**: Visual feedback with method-specific gaze point colors (orange, blue, purple)
 - **Simple Smoothing Algorithm**: Lightweight sliding window averaging (0-50 points, default: 30)
@@ -23,9 +23,9 @@ GazeTrackApp uses a modular architecture organized into distinct layers:
 
 ### Core Components
 - **ARViewContainer**: Main gaze tracking AR session and face tracking with integrated smoothing
-- **EyeTrackingLabARViewContainer**: Multi-method AR tracking with three different approaches
+- **GazeTrackLabARViewContainer**: Multi-method AR tracking with three different approaches
 - **SimpleGazeSmoothing**: Lightweight sliding window averaging algorithm
-- **EyeTrackingLabManager**: Multi-method comparison and real-time method switching
+- **GazeTrackLabManager**: Multi-method comparison and real-time method switching
 - **CalibrationManager**: Enhanced dual-phase calibration with auto-validation
 - **MeasurementManager**: 8-figure trajectory measurement with ME error analysis
 - **TrajectoryManager**: Manages recording and exporting of gaze trajectory data
@@ -43,7 +43,7 @@ GazeTrackApp/
 │   └── Utils/              # Utility functions
 ├── Features/               # Feature modules
 │   ├── GazeTrack/         # Main tracking interface
-│   ├── EyeTrackingLab/    # Multi-method comparison
+│   ├── GazeTrackLab/    # Multi-method comparison
 │   ├── Calibration/       # Calibration features
 │   └── Measurement/       # Measurement tools
 ├── Resources/             # Assets and media
@@ -60,8 +60,8 @@ GazeTrackApp/
 4. Build and run the app on your device
 ## Usage
 
-### Eye Tracking Lab (Method Comparison)
-1. Launch the app and select "Eye Tracking Lab"
+### Gaze Track Lab (Method Comparison)
+1. Launch the app and select "Gaze Track Lab"
 2. Toggle the grid overlay to show 28-zone reference grid (A-Z, #, @)
 3. Click the method switch button to cycle between three tracking approaches:
    - **Dual Eyes + HitTest** (Orange gaze point)
@@ -103,7 +103,7 @@ The exported CSV file contains the following columns:
 - Recording time needs to be at least 10 seconds to be valid
 ## Recent Updates
 
-### Version 3.0 Features - Eye Tracking Lab
+### Version 3.0 Features - Gaze Track Lab
 - **Multi-Method Comparison**: Added comprehensive comparison of three tracking approaches
 - **Grid Testing System**: 28-zone grid overlay (A-Z, #, @) for precision testing
 - **Color-Coded Feedback**: Method-specific gaze point colors for visual identification

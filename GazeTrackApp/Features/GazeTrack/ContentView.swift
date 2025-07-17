@@ -943,7 +943,7 @@ struct ContentView: View {
     }
 }
 
-// GridOverlayView is imported from EyeTrackingLabView
+// GridOverlayView is imported from GazeTrackLabView
 
 #if DEBUG
 struct ContentView_Previews: PreviewProvider {
