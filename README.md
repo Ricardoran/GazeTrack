@@ -6,6 +6,9 @@ The app utilizes the front-facing TrueDepth camera system on compatible iOS devi
 
 ## Features
 - **Real-time Eye Tracking**: Tracks where the user is looking on the screen with optimized smoothing
+- **Gaze Track Lab**: Multi-method comparison with three different tracking approaches
+- **Grid Testing**: 28-zone grid overlay (A-Z, #, @) for precision testing and accuracy assessment
+- **Color-Coded Tracking**: Visual feedback with method-specific gaze point colors (orange, blue, purple)
 - **Simple Smoothing Algorithm**: Lightweight sliding window averaging (0-50 points, default: 30)
 - **Responsive Controls**: Real-time adjustable smoothing for different use cases
 - **Enhanced Calibration**: Dual-phase calibration with auto-validation and 50pt proximity check
@@ -16,16 +19,36 @@ The app utilizes the front-facing TrueDepth camera system on compatible iOS devi
 - **Trajectory Visualization**: Comprehensive trajectory comparison and error analysis
 - **Performance Optimized**: Minimal latency with consistent 60fps performance
 ## Architecture
-GazeTrackApp uses a modular architecture with the following components:
+GazeTrackApp uses a modular architecture organized into distinct layers:
 
-- **ARViewContainer**: Handles AR session and face tracking with integrated smoothing
+### Core Components
+- **ARViewContainer**: Main gaze tracking AR session and face tracking with integrated smoothing
+- **GazeTrackLabARViewContainer**: Multi-method AR tracking with three different approaches
 - **SimpleGazeSmoothing**: Lightweight sliding window averaging algorithm
+- **GazeTrackLabManager**: Multi-method comparison and real-time method switching
 - **CalibrationManager**: Enhanced dual-phase calibration with auto-validation
 - **MeasurementManager**: 8-figure trajectory measurement with ME error analysis
 - **TrajectoryManager**: Manages recording and exporting of gaze trajectory data
 - **VideoManager**: Manages video playback and opacity settings
-- **UIManager**: Handles UI state and interactions
-- **TrajectoryComparisonView**: Visual trajectory comparison and error analysis
+- **UIManager**: Handles UI state and interactions with auto-hide functionality
+
+### Project Structure
+```
+GazeTrackApp/
+├── App/                     # Application entry layer
+├── Core/                    # Core functionality
+│   ├── Managers/           # Business logic managers
+│   ├── AR/                 # ARKit integration
+│   ├── Algorithms/         # Processing algorithms
+│   └── Utils/              # Utility functions
+├── Features/               # Feature modules
+│   ├── GazeTrack/         # Main tracking interface
+│   ├── GazeTrackLab/    # Multi-method comparison
+│   ├── Calibration/       # Calibration features
+│   └── Measurement/       # Measurement tools
+├── Resources/             # Assets and media
+└── Supporting Files/      # Configuration
+```
 ## Requirements
 - iOS device with Face ID (iPhone X or newer, or compatible iPad Pro)
 - iOS 16.0 or later
@@ -37,8 +60,19 @@ GazeTrackApp uses a modular architecture with the following components:
 4. Build and run the app on your device
 ## Usage
 
+### Gaze Track Lab (Method Comparison)
+1. Launch the app and select "Gaze Track Lab"
+2. Toggle the grid overlay to show 28-zone reference grid (A-Z, #, @)
+3. Click the method switch button to cycle between three tracking approaches:
+   - **Dual Eyes + HitTest** (Orange gaze point)
+   - **LookAt + Matrix Transform** (Blue gaze point) 
+   - **LookAt + HitTest** (Purple gaze point)
+4. Adjust smoothing window size (0-50 points) for response vs stability balance
+5. Look at different grid zones to test accuracy across methods
+6. Monitor real-time distance display for optimal tracking conditions
+
 ### Basic Eye Tracking
-1. Launch the app on your iOS device
+1. Launch the app and select "Gaze Track"
 2. Choose whether to display a video or use the camera view
 3. Adjust smoothing window size (0-50 points) using the slider
 4. Press "Start Calibration" for enhanced calibration (recommended)
@@ -49,6 +83,8 @@ GazeTrackApp uses a modular architecture with the following components:
 9. Use "Export Trajectory" to save and share the data
 
 ### Advanced Features
+- **Multi-Method Comparison**: Compare three different tracking approaches in real-time
+- **Grid Precision Testing**: Use 28-zone grid for quick accuracy assessment
 - **Calibration**: Enhanced dual-phase calibration with auto-validation
 - **8-Figure Measurement**: Test tracking accuracy with trajectory following
 - **Smoothing Control**: Real-time adjustment of window size for optimal performance
@@ -67,13 +103,21 @@ The exported CSV file contains the following columns:
 - Recording time needs to be at least 10 seconds to be valid
 ## Recent Updates
 
+### Version 3.0 Features - Gaze Track Lab
+- **Multi-Method Comparison**: Added comprehensive comparison of three tracking approaches
+- **Grid Testing System**: 28-zone grid overlay (A-Z, #, @) for precision testing
+- **Color-Coded Feedback**: Method-specific gaze point colors for visual identification
+- **Organized Architecture**: Restructured project into logical feature modules
+- **Thread Safety**: Fixed UI API thread safety warnings
+- **Auto-Hide UI**: Implemented 3-second auto-hide for immersive experience
+- **Distance Monitoring**: Real-time eye-to-screen distance display
+
 ### Version 2.0 Features
 - **Simplified Smoothing**: Replaced complex Kalman filtering with efficient sliding window averaging
 - **Enhanced Calibration**: Dual-phase calibration with auto-validation and proximity checking
 - **8-Figure Measurement**: Advanced trajectory measurement with ME (Mean Euclidean) error analysis
 - **Performance Optimization**: Reduced latency and improved 60fps consistency
 - **UI Improvements**: Real-time smoothing controls and enhanced user feedback
-- **Bug Fixes**: Resolved measurement result dialog close button issues
 
 ## Future Development
 Planned features for future releases:
@@ -120,6 +164,9 @@ Built with ARKit, RealityKit, and SwiftUI
 
 ## 功能特点
 - **实时眼动追踪**：优化平滑算法的实时屏幕注视位置追踪
+- **眼动追踪实验室**：三种不同追踪方法的多重对比功能
+- **网格测试系统**：28区域网格覆盖层（A-Z，#，@）用于精度测试和准确性评估
+- **彩色编码追踪**：根据方法特定的凝视点颜色（橙色、蓝色、紫色）提供视觉反馈
 - **简单平滑算法**：轻量级滑动窗口平均算法（0-50点，默认30点）
 - **响应式控制**：实时可调节的平滑参数，适应不同使用场景
 - **增强校准系统**：双阶段校准，带自动验证和50点邻近检查

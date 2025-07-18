@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import Foundation
 
 struct GazeData: Codable {
     let elapsedTime: TimeInterval // 记录开始后的时间（秒）
@@ -15,6 +16,19 @@ class TrajectoryManager: ObservableObject {
     @Published var showCountdown: Bool = false
     @Published var showTrajectoryView: Bool = false
     @Published var showExportAlert: Bool = false
+    @Published var showMLUploadAlert: Bool = false
+    
+    // ML模型服务
+    private let mlService = MLModelService()
+    
+    // 计算录制时长
+    var recordingDuration: TimeInterval? {
+        guard !gazeTrajectory.isEmpty else { return nil }
+        if let first = gazeTrajectory.first, let last = gazeTrajectory.last {
+            return last.elapsedTime - first.elapsedTime
+        }
+        return nil
+    }
     
     // 添加新的轨迹点
     func addTrajectoryPoint(point: CGPoint) {
@@ -136,10 +150,43 @@ class TrajectoryManager: ObservableObject {
         }
     }
     
+    // 上传数据到ML模型
+    func uploadToMLModel(completion: @escaping (MLModelResponse?) -> Void) {
+        guard !gazeTrajectory.isEmpty else {
+            completion(nil)
+            return
+        }
+        
+        mlService.sendGazeDataToModel(gazeTrajectory) { result in
+            switch result {
+            case .success(let response):
+                completion(response)
+            case .failure(let error):
+                print("ML模型上传失败：\(error)")
+                completion(nil)
+            }
+        }
+    }
+    
+    // 获取ML服务状态
+    var isUploadingToML: Bool {
+        return mlService.isUploading
+    }
+    
+    var lastMLResult: MLModelResponse? {
+        return mlService.lastResult
+    }
+    
+    var mlErrorMessage: String? {
+        return mlService.errorMessage
+    }
+    
+    
     // 重置轨迹数据
     func resetTrajectory() {
         gazeTrajectory.removeAll()
         recordingStartTime = nil
+        mlService.resetState()
     }
 }
 

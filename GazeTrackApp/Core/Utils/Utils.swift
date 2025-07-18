@@ -11,8 +11,19 @@ import ARKit
 
 struct Device {
     static var currentOrientation: UIInterfaceOrientation {
-        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-            return scene.interfaceOrientation
+        // 确保在主线程调用
+        if Thread.isMainThread {
+            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                return scene.interfaceOrientation
+            }
+        } else {
+            // 如果在后台线程，返回缓存的值或默认值
+            return DispatchQueue.main.sync {
+                if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                    return scene.interfaceOrientation
+                }
+                return .portrait
+            }
         }
         return .portrait
     }
@@ -128,23 +139,22 @@ struct Device {
     
     // 获取安全区域的尺寸
     static func getSafeAreaInsets() -> UIEdgeInsets {
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let window = windowScene.windows.first {
-            let insets = window.safeAreaInsets
-            
-            #if DEBUG
-            if arc4random_uniform(300) == 0 {
-                print("=== Safe Area 调试信息 ===")
-                print("设备方向:", isLandscape ? "横屏" : "竖屏")
-                print("设备名称: \(UIDevice.current.name)")
-                print("设备型号: \(UIDevice.current.model)")
-                print("系统版本: \(UIDevice.current.systemVersion)")
-                print("TrueDepth摄像头支持:", Device.supportsTrueDepthCamera ? "支持" : "不支持")
-                print("ARFaceTrackingConfiguration支持:", ARFaceTrackingConfiguration.isSupported ? "支持" : "不支持")
-                print("=======================")
+        // 确保在主线程调用
+        if Thread.isMainThread {
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let window = windowScene.windows.first {
+                let insets = window.safeAreaInsets
+                return insets
             }
-            #endif            
-            return insets
+        } else {
+            // 如果在后台线程，同步调用主线程
+            return DispatchQueue.main.sync {
+                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                   let window = windowScene.windows.first {
+                    return window.safeAreaInsets
+                }
+                return UIEdgeInsets.zero
+            }
         }
         return UIEdgeInsets.zero
     }
@@ -178,9 +188,18 @@ extension CGFloat {
 
 extension View {
     func getRootViewController() -> UIViewController? {
-        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = scene.windows.first(where: { $0.isKeyWindow }) else { return nil }
-        return window.rootViewController
+        // 确保在主线程调用
+        if Thread.isMainThread {
+            guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let window = scene.windows.first(where: { $0.isKeyWindow }) else { return nil }
+            return window.rootViewController
+        } else {
+            return DispatchQueue.main.sync {
+                guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                      let window = scene.windows.first(where: { $0.isKeyWindow }) else { return nil }
+                return window.rootViewController
+            }
+        }
     }
 }
 

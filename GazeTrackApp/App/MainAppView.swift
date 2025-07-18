@@ -18,6 +18,8 @@ struct MainAppView: View {
                 GazeTrackView(currentView: $currentView, calibrationManager: sharedCalibrationManager, measurementManager: sharedMeasurementManager)
             case .gazeTrackAutoStart:
                 GazeTrackAutoStartView(currentView: $currentView, calibrationManager: sharedCalibrationManager, measurementManager: sharedMeasurementManager)
+            case .gazeTrackLab:
+                GazeTrackLabView(currentView: $currentView)
             }
         }
         .animation(.easeInOut(duration: 0.3), value: currentView)

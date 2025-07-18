@@ -24,44 +24,41 @@ struct TrajectoryComparisonView: View {
             Color.white.edgesIgnoringSafeArea(.all)
             
             VStack {
-                // 标题
-                VStack(spacing: 20) {
-                    HStack {
-                        Spacer()
-                        
-                        Text("轨迹对比分析")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.black)
-                        
-                        Spacer()
-                    }
-                    .padding(.top, 10)
+                // 顶部标题栏 - 统一水平布局
+                HStack {
+                    // 返回按钮
+                    UnifiedButton(
+                        action: { showVisualization = false },
+                        icon: "chevron.left",
+                        text: "返回结果",
+                        backgroundColor: Color.blue.opacity(0.8),
+                        style: .compact
+                    )
                     
-                    HStack {
-                        Button("返回结果页面") {
-                            showVisualization = false
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 8)
-                        .background(Color.red.opacity(0.2))
-                        .cornerRadius(8)
-                        
-                        Spacer()
-                        
-                        Button(showLegend ? "隐藏图例" : "显示图例") {
-                            showLegend.toggle()
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 8)
-                        .background(Color.blue.opacity(0.2))
-                        .cornerRadius(8)
-                    }
+                    Spacer()
+                    
+                    // 标题
+                    Text("轨迹对比分析")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.black)
+                    
+                    Spacer()
+                    
+                    // 图例切换按钮
+                    UnifiedButton(
+                        action: { showLegend.toggle() },
+                        icon: showLegend ? "eye.slash" : "eye",
+                        text: showLegend ? "隐藏图例" : "显示图例",
+                        backgroundColor: Color.blue.opacity(0.8),
+                        style: .compact
+                    )
                 }
-                .padding()
-                .padding(.top, 40)
+                .padding(.horizontal, 20)
+                .padding(.top, 50)
+                .padding(.bottom, 10)
                 
-                // 轨迹可视化
+                // 轨迹可视化区域
                 GeometryReader { geometry in
                     let scale = min(geometry.size.width / screenSize.width, 
                                    geometry.size.height / screenSize.height) * 0.9
@@ -108,115 +105,71 @@ struct TrajectoryComparisonView: View {
                     }
                 }
                 
-                // 图例和统计信息
+                // 底部图例和统计信息
                 if showLegend {
-                    VStack(spacing: 15) {
-                        // 图例
-                        HStack(spacing: 30) {
-                            HStack {
+                    VStack(spacing: 12) {
+                        // 图例说明
+                        HStack(spacing: 25) {
+                            HStack(spacing: 8) {
                                 Rectangle()
                                     .fill(Color.red)
-                                    .frame(width: 20, height: 3)
+                                    .frame(width: 24, height: 4)
+                                    .cornerRadius(2)
                                 Text("目标轨迹")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
+                                    .font(.subheadline)
+                                    .foregroundColor(.black)
                             }
                             
-                            HStack {
+                            HStack(spacing: 8) {
                                 Circle()
                                     .fill(Color.blue.opacity(0.8))
-                                    .frame(width: 6, height: 6)
+                                    .frame(width: 8, height: 8)
                                 Text("实际轨迹")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
+                                    .font(.subheadline)
+                                    .foregroundColor(.black)
                             }
                         }
+                        .padding(.bottom, 8)
                         
-                        // 测量结果 - 2x2网格布局
-                        VStack(spacing: 16) {
-                            // 第一行：距离误差 和 角度误差
-                            HStack(spacing: 20) {
-                                // 距离误差
-                                VStack(spacing: 8) {
-                                    Text("平均距离误差")
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
-                                        .multilineTextAlignment(.center)
-                                    Text("\(String(format: "%.4f", trajectoryResults.meanEuclideanErrorInCM)) cm")
-                                        .font(.title3)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.black)
-                                        .multilineTextAlignment(.center)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .padding(.horizontal, 8)
-                                .background(Color.red.opacity(0.1))
-                                .cornerRadius(12)
+                        // 统计数据 - 优化布局
+                        VStack(spacing: 12) {
+                            // 第一行：主要误差指标
+                            HStack(spacing: 15) {
+                                StatCard(
+                                    title: "平均距离误差",
+                                    value: "\(String(format: "%.3f", trajectoryResults.meanEuclideanErrorInCM)) cm",
+                                    color: .red
+                                )
                                 
-                                // 角度误差
-                                VStack(spacing: 8) {
-                                    Text("平均角度误差")
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
-                                        .multilineTextAlignment(.center)
-                                    Text("\(String(format: "%.4f", trajectoryResults.meanEuclideanErrorInDegrees))°")
-                                        .font(.title3)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.blue)
-                                        .multilineTextAlignment(.center)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .padding(.horizontal, 8)
-                                .background(Color.blue.opacity(0.1))
-                                .cornerRadius(12)
+                                StatCard(
+                                    title: "平均角度误差",
+                                    value: "\(String(format: "%.3f", trajectoryResults.meanEuclideanErrorInDegrees))°",
+                                    color: .blue
+                                )
                             }
                             
-                            // 第二行：采样点数 和 眼睛到屏幕距离
-                            HStack(spacing: 20) {
-                                // 采样点数
-                                VStack(spacing: 8) {
-                                    Text("采样点数")
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
-                                        .multilineTextAlignment(.center)
-                                    Text("\(sampleTrajectoryPoints().count)")
-                                        .font(.title3)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.green)
-                                        .multilineTextAlignment(.center)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .padding(.horizontal, 8)
-                                .background(Color.green.opacity(0.1))
-                                .cornerRadius(12)
+                            // 第二行：辅助信息
+                            HStack(spacing: 15) {
+                                StatCard(
+                                    title: "采样点数",
+                                    value: "\(sampleTrajectoryPoints().count)",
+                                    color: .green
+                                )
                                 
-                                // 眼睛到屏幕距离
-                                VStack(spacing: 8) {
-                                    Text("眼睛到屏幕距离")
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
-                                        .multilineTextAlignment(.center)
-                                    Text("\(String(format: "%.1f", trajectoryResults.averageEyeToScreenDistance)) cm")
-                                        .font(.title3)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.purple)
-                                        .multilineTextAlignment(.center)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .padding(.horizontal, 8)
-                                .background(Color.purple.opacity(0.1))
-                                .cornerRadius(12)
+                                StatCard(
+                                    title: "观测距离",
+                                    value: "\(String(format: "%.1f", trajectoryResults.averageEyeToScreenDistance)) cm",
+                                    color: .purple
+                                )
                             }
                         }
                     }
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(10)
-                    .padding()
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 15)
+                    .background(Color.gray.opacity(0.05))
+                    .cornerRadius(12)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 20)
                 }
             }
         }
@@ -384,6 +337,35 @@ struct TrajectoryComparisonView: View {
         }
         
         return sampledPoints
+    }
+}
+
+// 统计卡片组件
+struct StatCard: View {
+    let title: String
+    let value: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 6) {
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+            
+            Text(value)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(color)
+                .multilineTextAlignment(.center)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 8)
+        .background(color.opacity(0.08))
+        .cornerRadius(8)
     }
 }
 

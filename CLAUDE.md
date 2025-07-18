@@ -33,11 +33,12 @@ xcodebuild -project GazeTrackApp.xcodeproj -scheme GazeTrackApp -destination 'pl
 ### Key Manager Classes
 All managers follow the `ObservableObject` pattern with `@Published` properties:
 
-1. **CalibrationManager** (`CalibrationManager.swift`): 5-point calibration with gaussian-weighted correction
-2. **TrajectoryManager** (`TrajectoryManager.swift`): 60Hz gaze data recording and CSV export
-3. **VideoManager** (`VideoManager.swift`): Video playback with adjustable opacity during tracking
-4. **UIManager** (`UIManager.swift`): UI state management and button visibility timers
-5. **MeasurementManager** (`MeasurementManager.swift`): Accuracy measurement and 8-figure trajectory tracking
+1. **CalibrationManager** (`Core/Managers/CalibrationManager.swift`): 5-point calibration with gaussian-weighted correction
+2. **TrajectoryManager** (`Core/Managers/TrajectoryManager.swift`): 60Hz gaze data recording and CSV export
+3. **VideoManager** (`Core/Managers/VideoManager.swift`): Video playback with adjustable opacity during tracking
+4. **UIManager** (`Core/Managers/UIManager.swift`): UI state management and button visibility timers
+5. **MeasurementManager** (`Core/Managers/MeasurementManager.swift`): Accuracy measurement and 8-figure trajectory tracking
+6. **GazeTrackLabManager** (`Core/Managers/GazeTrackLabManager.swift`): Multi-method eye tracking comparison and analysis
 
 ### Application Modes
 
@@ -56,29 +57,50 @@ All managers follow the `ObservableObject` pattern with `@Published` properties:
 - **ME (Mean Euclidean) Display**: Results shown in centimeters and visual accuracy analysis
 
 #### Calibration Mode
-- **Enhanced 5-Point Calibration**: Center + 4 corners with dual-phase collection
-- **Adaptive Collection**: 3-second initial data collection + 3-second alignment verification
-- **Auto-Validation**: 50pt proximity check for calibration point alignment
-- **Gaussian-Weighted Correction**: Spatial interpolation using all calibration vectors
+- **28-Zone Grid Calibration**: 7×4 grid system (A-Z, #, @) with comprehensive screen coverage
+- **Piecewise Linear Interpolation**: Zone-based linear mapping for robust accuracy
+- **Adaptive Collection**: 3-second data collection per zone with automatic progression
+- **Auto-Validation**: Minimum 3 gaze vectors per zone for stable linear mapping
+- **Least-Squares Optimization**: Per-zone linear coefficients (6 parameters: screenX/Y = a*u + b*v + c)
+- **Robust Zone Matching**: Best-fit zone selection based on gaze vector similarity
 
-### Core Views
-- **ContentView.swift**: Main UI container with all controls and overlays
-- **ARViewContainer.swift**: UIViewRepresentable wrapper for CustomARView
-- **CustomARView**: ARView subclass handling face tracking and coordinate transformations
-- **SimpleGazeSmoothing.swift**: Lightweight sliding window smoothing algorithm
-- **TrajectoryComparisonView.swift**: Visual comparison of target vs actual gaze trajectories
+#### Gaze Track Lab Mode
+- **Multi-Method Comparison**: Three different eye tracking approaches for accuracy comparison
+- **Method Switching**: Real-time switching between dual eyes+hitTest, lookAtPoint+matrix, and lookAtPoint+hitTest
+- **Visual Feedback**: Color-coded gaze points (orange, blue, purple) matching tracking method
+- **Grid Overlay**: 28-zone grid (A-Z, #, @) for precision testing and quick accuracy assessment
+- **Simple Smoothing**: Adjustable window size (0-50 points) with real-time response vs stability control
+- **Distance Monitoring**: Live eye-to-screen distance display for optimal tracking conditions
+
+### Core Views and Components
+- **App/MainAppView.swift**: Main application entry and view navigation
+- **App/LandingPageView.swift**: Home screen with feature selection
+- **Features/GazeTrack/ContentView.swift**: Main gaze tracking UI container with all controls and overlays
+- **Features/GazeTrackLab/GazeTrackLabView.swift**: Multi-method comparison interface with grid overlay
+- **Features/GazeTrack/TrajectoryComparisonView.swift**: Visual comparison of target vs actual gaze trajectories
+- **Core/AR/ARViewContainer.swift**: UIViewRepresentable wrapper for CustomARView
+- **Core/AR/GazeTrackLabARViewContainer.swift**: Multi-method AR tracking container
+- **Core/Algorithms/SimpleGazeSmoothing.swift**: Lightweight sliding window smoothing algorithm
 
 ### Data Flow Architecture
 ```
-ARKit Face Tracking → ARViewContainer → SimpleGazeSmoothing → Manager Classes → UI Updates
-                                    ↓
-                              CalibrationManager (calibration mode)
-                                    ↓
-                              TrajectoryManager (recording mode)
-                                    ↓
-                              MeasurementManager (8-figure analysis)
-                                    ↓
-                              CSV Export via ActivityViewController
+ARKit Face Tracking → AR Containers → SimpleGazeSmoothing → Manager Classes → UI Updates
+                           ↓
+                    GazeTrackLabARViewContainer (lab mode)
+                           ↓
+                    Multi-method tracking (dual eyes+hitTest, lookAtPoint+matrix, lookAtPoint+hitTest)
+                           ↓
+                    GazeTrackLabManager → Color-coded gaze display
+
+                    ARViewContainer (main gaze track)
+                           ↓
+                    CalibrationManager (calibration mode)
+                           ↓
+                    TrajectoryManager (recording mode)
+                           ↓
+                    MeasurementManager (8-figure analysis)
+                           ↓
+                    CSV Export via ActivityViewController
 ```
 
 ### Coordinate System Handling
@@ -120,20 +142,51 @@ Lightweight and efficient smoothing system optimized for real-time performance:
 
 ## File Structure Patterns
 
-### Main Source Directory (`GazeTrackApp/`)
-- **App entry**: `GazeTrackAppApp.swift`
-- **Managers**: Individual manager classes for each major feature
-- **Core Components**: `SimpleGazeSmoothing.swift`, `TrajectoryComparisonView.swift`
-- **Utils**: `Utils.swift` contains extensions and utility functions
-- **Assets**: Icons and resources in `Assets.xcassets/`
-- **Sample content**: `.mov` files for video testing
+### Organized Project Structure
+```
+GazeTrackApp/
+├── App/                          # Application entry layer
+│   ├── GazeTrackAppApp.swift     # Main app entry point
+│   ├── MainAppView.swift         # Root view navigation
+│   └── LandingPageView.swift     # Home screen interface
+├── Core/                         # Core functionality layer
+│   ├── Managers/                 # Business logic managers
+│   │   ├── CalibrationManager.swift
+│   │   ├── TrajectoryManager.swift
+│   │   ├── MeasurementManager.swift
+│   │   ├── VideoManager.swift
+│   │   ├── UIManager.swift
+│   │   └── GazeTrackLabManager.swift
+│   ├── AR/                       # ARKit integration
+│   │   ├── ARViewContainer.swift
+│   │   └── GazeTrackLabARViewContainer.swift
+│   ├── Algorithms/               # Processing algorithms
+│   │   └── SimpleGazeSmoothing.swift
+│   └── Utils/                    # Utility functions
+│       └── Utils.swift
+├── Features/                     # Feature modules
+│   ├── GazeTrack/               # Main tracking interface
+│   │   ├── ContentView.swift
+│   │   └── TrajectoryComparisonView.swift
+│   ├── GazeTrackLab/          # Multi-method comparison
+│   │   └── GazeTrackLabView.swift
+│   ├── Calibration/             # Calibration features
+│   └── Measurement/             # Measurement tools
+├── Resources/                    # Assets and media
+│   ├── Assets.xcassets/
+│   ├── horizon.mov
+│   └── test.mov
+└── Supporting Files/             # Configuration
+    ├── Info.plist
+    └── Preview Content/
+```
 
-### Key Files
-- `CalibrationManager.swift`: Enhanced dual-phase calibration with auto-validation
-- `MeasurementManager.swift`: 8-figure trajectory measurement with ME error analysis
-- `SimpleGazeSmoothing.swift`: Lightweight sliding window smoothing algorithm
-- `ContentView.swift`: Main UI with simplified smoothing controls
-- `ARViewContainer.swift`: Core AR functionality with integrated smoothing
+### Key Components
+- **GazeTrackLabManager.swift**: Multi-method eye tracking comparison with real-time method switching
+- **GazeTrackLabView.swift**: Lab interface with grid overlay and color-coded gaze points
+- **GridOverlayView**: 28-zone grid (A-Z, #, @) for precision testing
+- **SimpleGazeSmoothing.swift**: Lightweight sliding window smoothing algorithm
+- **Utils.swift**: Thread-safe device utilities and coordinate transformations
 
 ### Project Configuration
 - **Bundle ID**: `haoranzh.GazeTrackApp`
@@ -158,6 +211,20 @@ Lightweight and efficient smoothing system optimized for real-time performance:
 - Gaze trajectories include timestamps and x,y coordinates
 - Built-in validation prevents export of incomplete data
 
+## ML Model Integration
+
+### Real-Time Analysis
+- **Hugging Face API**: Integrated with professional gaze analysis model
+- **Two-step API**: POST for event_id → GET for analysis results
+- **SSE Response**: Parses Server-Sent Events format correctly
+- **Professional Metrics**: Attention score, stability, coverage, movement patterns
+
+### API Configuration
+- **Endpoint**: `https://ricardo15222024-gaze-track-analyzer.hf.space/gradio_api/call/predict`
+- **Status**: ✅ Production-ready and tested
+- **Fallback**: Automatic fallback to test API if needed
+- **Error Handling**: Comprehensive error handling and retry logic
+
 ## Common Issues
 
 ### Technical Challenges
@@ -165,6 +232,7 @@ Lightweight and efficient smoothing system optimized for real-time performance:
 - **Coordinate accuracy**: Calibration is essential for accurate gaze mapping
 - **Device requirements**: Features fail gracefully on unsupported devices
 - **Memory management**: Long recording sessions require proper cleanup
+- **API Integration**: ML analysis requires network connectivity
 
 ### Gaze Tracking Robustness Issues
 - **Head Movement Sensitivity**: Micro head movements cause gaze point drift even when eyes remain fixed
@@ -191,3 +259,6 @@ Lightweight and efficient smoothing system optimized for real-time performance:
 - **Auto-Validation**: 50pt proximity check ensures accurate calibration points
 - **Enhanced Feedback**: Visual and timing cues guide user through calibration process
 - **Robust Error Handling**: Automatic retry for insufficient or misaligned data
+
+### Update Documentation
+- Updated general documentation tracking and code repository management practices
