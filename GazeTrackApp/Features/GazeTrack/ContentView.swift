@@ -298,6 +298,8 @@ struct ContentView: View {
                         .foregroundColor(.white)
                         .padding()
                         .background(Color.red)
+                        .disabled(true)
+                        .opacity(0.5)
                         .cornerRadius(10)
                         
                         // 快捷跳转到Gaze Track按钮 - 只在校准完成后显示
