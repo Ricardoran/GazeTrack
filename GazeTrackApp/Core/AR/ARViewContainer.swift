@@ -110,19 +110,9 @@ class CustomARView: ARView, ARSessionDelegate {
         if eyeGazeActive {
             if calibrationManager.calibrationCompleted{
                 #if DEBUG
-                if arc4random_uniform(300) == 0 {
-                    print("🔴 [GAZE TRACKING] 使用校准后的模型进行眼动追踪")
-                    print("🔴 [GAZE TRACKING] 校准状态: \(calibrationManager.calibrationCompleted)")
-                }
                 #endif
                 calibrationManager.predictScreenPoint(from:faceAnchor)
             } else {
-                #if DEBUG
-                if arc4random_uniform(300) == 0 {
-                    print("🟡 [GAZE TRACKING] 未完成校准，使用原始gaze point")
-                    print("🟡 [GAZE TRACKING] 校准状态: \(calibrationManager.calibrationCompleted)")
-                }
-                #endif
             }
         }
 //        self.configureDebugOptions()
@@ -231,12 +221,6 @@ class CustomARView: ARView, ARSessionDelegate {
         if measurementManager.isMeasuring || measurementManager.isTrajectoryMeasuring {
             finalFocusPoint = applySmoothing(rawPoint: rawFocusPoint)
             
-            #if DEBUG
-            if arc4random_uniform(300) == 0 {
-                let distance = sqrt(pow(finalFocusPoint.x - rawFocusPoint.x, 2) + pow(finalFocusPoint.y - rawFocusPoint.y, 2))
-                print("📏 [MEASUREMENT FILTER] 测量模式滤波: 距离差:\(String(format: "%.1f", distance))pt, 窗口:\(smoothingWindowSize)点")
-            }
-            #endif
         } else {
             finalFocusPoint = rawFocusPoint
         }
@@ -255,21 +239,10 @@ class CustomARView: ARView, ARSessionDelegate {
             // Gaze tracking模式：始终应用平滑
             finalFocusPoint = applySmoothing(rawPoint: rawFocusPoint)
             
-            #if DEBUG
-            if arc4random_uniform(300) == 0 {
-                let distance = sqrt(pow(finalFocusPoint.x - rawFocusPoint.x, 2) + pow(finalFocusPoint.y - rawFocusPoint.y, 2))
-                print("🔬 [GRID TRACKING] 网格校准+平滑: 距离差:\(String(format: "%.1f", distance))pt")
-            }
-            #endif
         } else if measurementManager.isMeasuring || measurementManager.isTrajectoryMeasuring {
             // 测量模式：也应用平滑
             finalFocusPoint = applySmoothing(rawPoint: rawFocusPoint)
             
-            #if DEBUG
-            if arc4random_uniform(300) == 0 {
-                print("📏 [GRID MEASUREMENT] 网格校准+平滑应用")
-            }
-            #endif
         } else {
             // 校准模式或其他：不应用平滑
             finalFocusPoint = rawFocusPoint
@@ -290,22 +263,10 @@ class CustomARView: ARView, ARSessionDelegate {
             // Gaze tracking模式：始终应用平滑
             finalFocusPoint = applySmoothing(rawPoint: rawFocusPoint)
             
-            #if DEBUG
-            if arc4random_uniform(300) == 0 {
-                let distance = sqrt(pow(finalFocusPoint.x - rawFocusPoint.x, 2) + pow(finalFocusPoint.y - rawFocusPoint.y, 2))
-                print("👁️ [GAZE TRACKING FILTER] 简单平滑: 距离差:\(String(format: "%.1f", distance))pt")
-            }
-            #endif
         } else if measurementManager.isMeasuring || measurementManager.isTrajectoryMeasuring {
             // 测量模式：也应用平滑
             finalFocusPoint = applySmoothing(rawPoint: rawFocusPoint)
             
-            #if DEBUG
-            if arc4random_uniform(300) == 0 {
-                let distance = sqrt(pow(finalFocusPoint.x - rawFocusPoint.x, 2) + pow(finalFocusPoint.y - rawFocusPoint.y, 2))
-                print("📏 [MEASUREMENT FILTER CALIB] 校准后测量模式滤波: 距离差:\(String(format: "%.1f", distance))pt")
-            }
-            #endif
         } else {
             finalFocusPoint = rawFocusPoint
         }
@@ -404,12 +365,6 @@ class CustomARView: ARView, ARSessionDelegate {
         // 应用简单平滑
         let smoothedPoint = simpleGazeSmoothing.addPoint(rawPoint)
         
-        #if DEBUG
-        if arc4random_uniform(600) == 0 {
-            let distance = sqrt(pow(smoothedPoint.x - rawPoint.x, 2) + pow(smoothedPoint.y - rawPoint.y, 2))
-            print("🎯 [SIMPLE SMOOTHING] 窗口大小:\(smoothingWindowSize), 距离差:\(String(format: "%.1f", distance))pt")
-        }
-        #endif
         
         return smoothedPoint
     }

@@ -24,72 +24,44 @@ struct LandingPageView: View {
                 // Main buttons
                 VStack(spacing: 20) {
                     // Calibration Button
-                    Button(action: {
-                        currentView = .calibration
-                    }) {
-                        HStack {
-                            Image(systemName: "target")
-                                .font(.title2)
-                            Text("Calibration")
-                                .font(.headline)
-                        }
-                        .foregroundColor(.white)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.red)
-                        .cornerRadius(15)
-                    }
+                    UnifiedButton(
+                        action: { currentView = .calibration },
+                        icon: "target",
+                        text: "Calibration",
+                        backgroundColor: Color.red,
+                        style: .large
+                    )
+                    .frame(width: 280, height: 56)
                     
                     // Measurement Button
-                    Button(action: {
-                        currentView = .measurement
-                    }) {
-                        HStack {
-                            Image(systemName: "ruler")
-                                .font(.title2)
-                            Text("Measurement")
-                                .font(.headline)
-                        }
-                        .foregroundColor(.white)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.orange)
-                        .cornerRadius(15)
-                    }
+                    UnifiedButton(
+                        action: { currentView = .measurement },
+                        icon: "ruler",
+                        text: "Measurement",
+                        backgroundColor: Color.orange,
+                        style: .large
+                    )
+                    .frame(width: 280, height: 56)
                     
                     // Gaze Track Button
-                    Button(action: {
-                        currentView = .gazeTrack
-                    }) {
-                        HStack {
-                            Image(systemName: "eye")
-                                .font(.title2)
-                            Text("Gaze Track")
-                                .font(.headline)
-                        }
-                        .foregroundColor(.white)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.blue)
-                        .cornerRadius(15)
-                    }
+                    UnifiedButton(
+                        action: { currentView = .gazeTrack },
+                        icon: "eye",
+                        text: "Gaze Track",
+                        backgroundColor: Color.blue,
+                        style: .large
+                    )
+                    .frame(width: 280, height: 56)
                     
                     // Gaze Track Lab Button
-                    Button(action: {
-                        currentView = .gazeTrackLab
-                    }) {
-                        HStack {
-                            Image(systemName: "flask")
-                                .font(.title2)
-                            Text("Gaze Track Lab")
-                                .font(.headline)
-                        }
-                        .foregroundColor(.white)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.green)
-                        .cornerRadius(15)
-                    }
+                    UnifiedButton(
+                        action: { currentView = .gazeTrackLab },
+                        icon: "flask",
+                        text: "Gaze Track Lab",
+                        backgroundColor: Color.green,
+                        style: .large
+                    )
+                    .frame(width: 280, height: 56)
                     
                 }
                 .padding(.horizontal, 30)

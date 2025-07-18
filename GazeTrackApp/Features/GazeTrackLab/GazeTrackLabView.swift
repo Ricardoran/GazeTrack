@@ -92,17 +92,15 @@ struct GazeTrackLabView: View {
                     Spacer()
                     
                     // 网格切换按钮
-                    Button(action: {
-                        showGrid.toggle()
-                        uiManager.resetButtonHideTimer()
-                    }) {
-                        Image(systemName: showGrid ? "grid.circle.fill" : "grid.circle")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.black.opacity(0.6))
-                            .clipShape(Circle())
-                    }
+                    UnifiedButton(
+                        action: {
+                            showGrid.toggle()
+                            uiManager.resetButtonHideTimer()
+                        },
+                        icon: showGrid ? "grid.circle.fill" : "grid.circle",
+                        backgroundColor: Color.black.opacity(0.6),
+                        style: .compact
+                    )
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 10)

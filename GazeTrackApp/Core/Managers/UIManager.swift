@@ -93,3 +93,63 @@ struct EyeToScreenDistanceView: View {
         .cornerRadius(12)
     }
 }
+
+// MARK: - Unified Button Component
+
+struct UnifiedButton: View {
+    enum Style {
+        case compact  // 主界面紧凑样式
+        case large    // 轨迹视图大按钮样式
+    }
+    
+    let action: () -> Void
+    let icon: String
+    let text: String?
+    let backgroundColor: Color
+    let style: Style
+    let isDisabled: Bool
+    let disabledOpacity: Double
+    
+    init(action: @escaping () -> Void, 
+         icon: String, 
+         text: String? = nil, 
+         backgroundColor: Color, 
+         style: Style = .large,
+         isDisabled: Bool = false,
+         disabledOpacity: Double = 0.5) {
+        self.action = action
+        self.icon = icon
+        self.text = text
+        self.backgroundColor = backgroundColor
+        self.style = style
+        self.isDisabled = isDisabled
+        self.disabledOpacity = disabledOpacity
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            if let text = text {
+                HStack(spacing: style == .compact ? 6 : 8) {
+                    Image(systemName: icon)
+                    Text(text)
+                }
+                .font(style == .compact ? .caption : .system(size: 16, weight: .medium))
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, style == .compact ? 12 : 16)
+                .padding(.vertical, style == .compact ? 8 : 12)
+                .background(backgroundColor)
+                .cornerRadius(style == .compact ? 8 : 12)
+            } else {
+                Image(systemName: icon)
+                    .font(style == .compact ? .caption : .system(size: 18, weight: .medium))
+                    .foregroundColor(.white)
+                    .frame(width: style == .compact ? 36 : 44, height: style == .compact ? 36 : 44)
+                    .background(backgroundColor)
+                    .cornerRadius(style == .compact ? 8 : 12)
+            }
+        }
+        .disabled(isDisabled)
+        .opacity(isDisabled ? disabledOpacity : 1.0)
+    }
+}

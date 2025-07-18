@@ -36,11 +36,10 @@ class MLModelService: ObservableObject {
     @Published var lastResult: MLModelResponse? = nil
     @Published var errorMessage: String? = nil
     
-    // 配置选项 - 使用真实的Hugging Face Gradio API
-    private let useRealHuggingFaceAPI = true // 已配置并测试成功
+    // Hugging Face Gradio API配置
     private let huggingFaceAPIURL = "https://ricardo15222024-gaze-track-analyzer.hf.space/gradio_api/call/predict" // 工作正常的Gradio API端点
     
-    // 发送CSV数据到ML模型（支持真实或测试API）
+    // 发送CSV数据到ML模型进行分析
     func sendGazeDataToModel(_ gazeData: [GazeData], completion: @escaping (Result<MLModelResponse, Error>) -> Void) {
         isUploading = true
         errorMessage = nil
@@ -54,140 +53,11 @@ class MLModelService: ObservableObject {
             csvText.append("\(formattedTime),\(formattedX),\(formattedY)\n")
         }
         
-        // 根据配置选择API
-        if useRealHuggingFaceAPI {
-            sendToRealHuggingFaceAPI(csvText, completion: completion)
-        } else {
-            sendToTestAPI(csvText, completion: completion)
-        }
+        // 调用Hugging Face API
+        sendToHuggingFaceAPI(csvText, completion: completion)
     }
     
-    // 测试API调用 - 使用公开的测试API
-    func sendToTestAPI(_ csvData: String, completion: @escaping (Result<MLModelResponse, Error>) -> Void) {
-        // 使用JSONPlaceholder作为测试API（完全公开，无需认证）
-        guard let url = URL(string: "https://jsonplaceholder.typicode.com/posts") else {
-            DispatchQueue.main.async {
-                self.isUploading = false
-                self.errorMessage = "Invalid API URL"
-                completion(.failure(URLError(.badURL)))
-            }
-            return
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        // 模拟发送分析数据
-        let dataPoints = csvData.components(separatedBy: "\n").count - 1
-        let requestBody = [
-            "title": "Gaze Tracking Analysis",
-            "body": "Analyzing \(dataPoints) gaze data points",
-            "userId": 1
-        ] as [String: Any]
-        
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-        } catch {
-            DispatchQueue.main.async {
-                self.isUploading = false
-                self.errorMessage = "Failed to encode request: \(error.localizedDescription)"
-                completion(.failure(error))
-            }
-            return
-        }
-        
-        print("🚀 Sending request to Public Test API...")
-        
-        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
-            DispatchQueue.main.async {
-                self?.isUploading = false
-                
-                if let error = error {
-                    print("❌ Network error: \(error.localizedDescription)")
-                    self?.errorMessage = "Network error: \(error.localizedDescription)"
-                    completion(.failure(error))
-                    return
-                }
-                
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    print("❌ Invalid response")
-                    self?.errorMessage = "Invalid response"
-                    completion(.failure(URLError(.badServerResponse)))
-                    return
-                }
-                
-                print("📡 HTTP Status: \(httpResponse.statusCode)")
-                
-                guard let data = data else {
-                    print("❌ No data received")
-                    self?.errorMessage = "No data received"
-                    completion(.failure(URLError(.dataNotAllowed)))
-                    return
-                }
-                
-                // 打印原始响应用于调试
-                if let responseString = String(data: data, encoding: .utf8) {
-                    print("📄 API Response: \(responseString)")
-                }
-                
-                do {
-                    // 解析JSONPlaceholder响应
-                    if let jsonObject = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let postId = jsonObject["id"] as? Int {
-                        
-                        // 基于成功的API调用生成分析结果
-                        let dataPoints = csvData.components(separatedBy: "\n").count - 1
-                        let result = Int.random(in: 75...95) // 高分表示成功的API调用
-                        
-                        let response = MLModelResponse(
-                            result: result,
-                            message: "实际API调用成功 (Post ID: \(postId))",
-                            processedDataPoints: dataPoints
-                        )
-                        
-                        print("✅ API call successful with Post ID: \(postId), Analysis score: \(result)")
-                        self?.lastResult = response
-                        completion(.success(response))
-                        
-                    } else {
-                        // Fallback处理
-                        print("⚠️ Unexpected response format, using fallback")
-                        let response = MLModelResponse(
-                            result: Int.random(in: 70...85),
-                            message: "API调用成功，响应格式异常",
-                            processedDataPoints: csvData.components(separatedBy: "\n").count - 1
-                        )
-                        
-                        self?.lastResult = response
-                        completion(.success(response))
-                    }
-                    
-                } catch {
-                    print("❌ JSON parsing error: \(error.localizedDescription)")
-                    // 即使解析失败，我们也知道网络调用成功了
-                    let response = MLModelResponse(
-                        result: Int.random(in: 60...80),
-                        message: "API调用成功，但响应解析失败",
-                        processedDataPoints: csvData.components(separatedBy: "\n").count - 1
-                    )
-                    
-                    self?.lastResult = response
-                    completion(.success(response))
-                }
-            }
-        }.resume()
-    }
     
-    // 从文本中提取分数的辅助函数
-    private func extractScoreFromText(_ text: String) -> Int {
-        // 查找数字模式
-        let numbers = text.components(separatedBy: CharacterSet.decimalDigits.inverted)
-            .compactMap { Int($0) }
-            .filter { $0 >= 1 && $0 <= 100 }
-        
-        return numbers.first ?? Int.random(in: 1...100)
-    }
     
     // 重置状态
     func resetState() {
@@ -196,47 +66,9 @@ class MLModelService: ObservableObject {
         isUploading = false
     }
     
-    // 测试公开API连接
-    func testMLConnection(completion: @escaping (Result<String, Error>) -> Void) {
-        guard let url = URL(string: "https://jsonplaceholder.typicode.com/posts/1") else {
-            completion(.failure(URLError(.badURL)))
-            return
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        print("🧪 Testing Public API connection...")
-        
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    print("❌ Connection test failed: \(error.localizedDescription)")
-                    completion(.failure(error))
-                    return
-                }
-                
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    completion(.failure(URLError(.badServerResponse)))
-                    return
-                }
-                
-                print("🔍 Test response status: \(httpResponse.statusCode)")
-                
-                if httpResponse.statusCode == 200 {
-                    print("✅ Public API connection successful!")
-                    completion(.success("公开API连接成功! 状态码: \(httpResponse.statusCode)"))
-                } else {
-                    print("⚠️ API responded with status: \(httpResponse.statusCode)")
-                    completion(.success("API响应状态码: \(httpResponse.statusCode) (连接已建立)"))
-                }
-            }
-        }.resume()
-    }
     
-    // 真实的Hugging Face API调用
-    func sendToRealHuggingFaceAPI(_ csvData: String, completion: @escaping (Result<MLModelResponse, Error>) -> Void) {
+    // Hugging Face API调用
+    func sendToHuggingFaceAPI(_ csvData: String, completion: @escaping (Result<MLModelResponse, Error>) -> Void) {
         guard let url = URL(string: huggingFaceAPIURL) else {
             DispatchQueue.main.async {
                 self.isUploading = false
@@ -266,7 +98,7 @@ class MLModelService: ObservableObject {
             return
         }
         
-        print("🚀 Sending request to Real Hugging Face API...")
+        print("🚀 Sending request to Hugging Face API...")
         
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             DispatchQueue.main.async {
@@ -312,9 +144,9 @@ class MLModelService: ObservableObject {
                     print("❌ JSON parsing error: \(error.localizedDescription)")
                     self?.errorMessage = "Failed to parse analysis result: \(error.localizedDescription)"
                     
-                    // Fallback
+                    // Fallback - API解析失败时的默认结果
                     let fallbackResponse = MLModelResponse(
-                        result: Int.random(in: 70...85),
+                        result: 0, // 固定分数：API解析失败
                         message: "API调用成功，但结果解析失败",
                         processedDataPoints: csvData.components(separatedBy: "\n").count - 1
                     )
@@ -434,9 +266,9 @@ class MLModelService: ObservableObject {
                 DispatchQueue.main.async {
                     self?.errorMessage = "Failed to parse analysis result: \(error.localizedDescription)"
                     
-                    // Fallback
+                    // Fallback - API解析失败时的默认结果
                     let fallbackResponse = MLModelResponse(
-                        result: Int.random(in: 70...85),
+                        result: 0, // 固定分数：API解析失败
                         message: "API调用成功，但结果解析失败",
                         processedDataPoints: csvData.components(separatedBy: "\n").count - 1
                     )

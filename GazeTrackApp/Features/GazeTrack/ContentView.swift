@@ -32,52 +32,51 @@ struct ContentView: View {
         self.autoStart = autoStart
     }
     
-    var body: some View {
-        ZStack(alignment: .bottom) {
-            // 背景层 - 在8字形测量准备或进行时使用纯色背景
-            if measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown {
-                Color.black
-                    .edgesIgnoringSafeArea(.all)
-            } else {
-                // AR 视图容器
-                ARViewContainer(
-                    eyeGazeActive: $eyeGazeActive,
-                    lookAtPoint: $lookAtPoint,
-                    isWinking: $isWinking,
-                    calibrationManager: calibrationManager,
-                    measurementManager: measurementManager,
-                    smoothingWindowSize: $smoothingWindowSize,
-                    arView: $arView
-                )
-                .onReceive(timerPublisher) { _ in
-                    if eyeGazeActive && !trajectoryManager.isCountingDown,
-                       let point = lookAtPoint {
-                        trajectoryManager.addTrajectoryPoint(point: point)
-                    }
-                }.onAppear {
-                }
-                
-                // 视频播放器（视频模式下，但在测量模式下禁用）
-                if videoManager.videoMode && mode != .measurement {
-                    ZStack {
-                        CustomVideoPlayer(player: videoManager.player, showButtons: $uiManager.showButtons)
-                            .opacity(videoManager.videoOpacity)
-                            .onAppear {
-                                videoManager.setupVideoPlayer()
-                            }
-                            .onDisappear {
-                                videoManager.player.pause()
-                            }
-                            // 添加额外的点击手势识别器
-                            .onTapGesture {
-                                uiManager.showButtons = true
-                                uiManager.resetButtonHideTimer()
-                            }
-                    }
-                }
+    var backgroundARView: some View {
+        ARViewContainer(
+            eyeGazeActive: $eyeGazeActive,
+            lookAtPoint: $lookAtPoint,
+            isWinking: $isWinking,
+            calibrationManager: calibrationManager,
+            measurementManager: measurementManager,
+            smoothingWindowSize: $smoothingWindowSize,
+            arView: $arView
+        )
+        .onReceive(timerPublisher) { _ in
+            if eyeGazeActive && !trajectoryManager.isCountingDown,
+               let point = lookAtPoint {
+                trajectoryManager.addTrajectoryPoint(point: point)
             }
-            
-            // 在8字形测量时，仍需要ARView来获取注视点数据，但设为透明
+        }
+    }
+    
+    var backgroundLayer: some View {
+        Group {
+            if measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown {
+                Color.black.edgesIgnoringSafeArea(.all)
+            } else {
+                backgroundARView
+            }
+        }
+    }
+    
+    var videoPlayerLayer: some View {
+        Group {
+            if videoManager.videoMode && mode != .measurement {
+                CustomVideoPlayer(player: videoManager.player, showButtons: $uiManager.showButtons)
+                    .opacity(videoManager.videoOpacity)
+                    .onAppear { videoManager.setupVideoPlayer() }
+                    .onDisappear { videoManager.player.pause() }
+                    .onTapGesture {
+                        uiManager.showButtons = true
+                        uiManager.resetButtonHideTimer()
+                    }
+            }
+        }
+    }
+    
+    var measurementARView: some View {
+        Group {
             if measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown {
                 ARViewContainer(
                     eyeGazeActive: $eyeGazeActive,
@@ -88,7 +87,7 @@ struct ContentView: View {
                     smoothingWindowSize: $smoothingWindowSize,
                     arView: $arView
                 )
-                .opacity(0)  // 完全透明，只用于数据收集
+                .opacity(0)
                 .edgesIgnoringSafeArea(.all)
                 .onReceive(timerPublisher) { _ in
                     if eyeGazeActive && !trajectoryManager.isCountingDown,
@@ -97,8 +96,12 @@ struct ContentView: View {
                     }
                 }
             }
-            // 校准说明视图
-            if showCalibrationGreeting{
+        }
+    }
+    
+    var calibrationInstructionView: some View {
+        Group {
+            if showCalibrationGreeting {
                 Text("请紧盯校准点，当提示：开始校准后，移动眼球，使光标至校准点")
                     .font(.largeTitle)
                     .foregroundColor(.white)
@@ -108,7 +111,11 @@ struct ContentView: View {
                     .transition(.opacity)
                     .animation(.easeInOut(duration: 0.5), value: showCalibrationGreeting)
             }
-            // 校准进度视图
+        }
+    }
+    
+    var calibrationProgressView: some View {
+        Group {
             if let message = calibrationManager.temporaryMessage {
                 Text(message)
                     .padding()
@@ -119,14 +126,20 @@ struct ContentView: View {
                     .zIndex(100)
                     .padding(.top, 60)
             }
-
-            // 网格覆盖层 - 只在校准模式下显示
+        }
+    }
+    
+    var gridOverlayView: some View {
+        Group {
             if calibrationManager.isCalibrating {
                 GridOverlayView()
-                    .allowsHitTesting(false) // 不阻挡AR视图的交互
+                    .allowsHitTesting(false)
             }
-            
-            // 校准点视图（在测量模式下或在校准模式下，显示这些已知位置的校准点，蓝色）
+        }
+    }
+    
+    var calibrationPointView: some View {
+        Group {
             if (calibrationManager.isCalibrating && calibrationManager.showCalibrationPoint) || 
                (measurementManager.isMeasuring && measurementManager.showCalibrationPoint) {
                 let calibrationPoint = calibrationManager.isCalibrating ? 
@@ -142,150 +155,131 @@ struct ContentView: View {
                         .animation(.easeInOut(duration: 0.3), value: calibrationManager.isCalibrating ? calibrationManager.currentPointIndex : measurementManager.currentPointIndex)
                 }
             }
-            
-            // 8字形轨迹点视图（在8字形测量模式下显示动态轨迹点，亮紫色）
+        }
+    }
+    
+    var trajectoryPointView: some View {
+        Group {
             if measurementManager.isTrajectoryMeasuring && measurementManager.showTrajectoryPoint {
                 Circle()
                     .fill(Color.purple)
-                    .frame(width: 35, height: 35)  // 增大轨迹点
+                    .frame(width: 35, height: 35)
                     .position(measurementManager.currentTrajectoryPoint)
-                    .shadow(color: .purple, radius: 10)  // 添加发光效果
+                    .shadow(color: .purple, radius: 10)
                     .transition(.scale.combined(with: .opacity))
                     .animation(.easeInOut(duration: 0.1), value: measurementManager.trajectoryProgress)
                 
-                // 添加外圈增强可见性
                 Circle()
                     .stroke(Color.white, lineWidth: 3)
                     .frame(width: 35, height: 35)
                     .position(measurementManager.currentTrajectoryPoint)
                     .transition(.scale.combined(with: .opacity))
                     .animation(.easeInOut(duration: 0.1), value: measurementManager.trajectoryProgress)
-                
             }
-            
-            // 注视点视图（在测量模式下或8字形测量模式下，显示实际注视点，绿色，半透明）
-            if (measurementManager.isMeasuring || measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown), let lookAtPoint = lookAtPoint {
-                Circle()
-                    .fill(Color.green)  // 在测量模式下统一使用绿色
-                    .frame(width: (measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown) ? 30 : 40, 
-                           height: (measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown) ? 30 : 40)
-                    .position(lookAtPoint)
-                    .opacity((measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown) ? 0.9 : 0.7)  // 8字形测量时更不透明
-                    .shadow(color: .green, radius: (measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown) ? 8 : 0)  // 8字形测量时添加发光效果
+        }
+    }
+    
+    var gazePointView: some View {
+        Group {
+            if let lookAtPoint = lookAtPoint, eyeGazeActive {
+                let isTrajectoryMode = measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown
+                let isMeasurementMode = measurementManager.isMeasuring || isTrajectoryMode
                 
-                // 在8字形测量时添加白色外圈
-                if measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown {
+                ZStack {
+                    // 主要的 gaze point - 根据模式选择颜色
+                    let gazeColor = isMeasurementMode ? Color.green : Color.red
+                    
                     Circle()
-                        .stroke(Color.white, lineWidth: 2)
-                        .frame(width: 30, height: 30)
+                        .fill(gazeColor)
+                        .frame(width: isMeasurementMode ? (isTrajectoryMode ? 30 : 35) : 40, 
+                               height: isMeasurementMode ? (isTrajectoryMode ? 30 : 35) : 40)
                         .position(lookAtPoint)
-                        .opacity(0.8)
-                }
-            }
-
-            // Top header with back button and compact action buttons
-            VStack {
-                HStack {
-                    BackButton(action: {
-                        // Stop any ongoing calibration or measurement process
-                        calibrationManager.stopCalibration()
-                        measurementManager.stopMeasurement()
-                        measurementManager.stopTrajectoryMeasurement()  // 停止8字形测量
-                        eyeGazeActive = false
-                        currentView = .landing
-                    })
+                        .opacity(isTrajectoryMode ? 0.9 : 0.8)
+                        .shadow(color: gazeColor, radius: isTrajectoryMode ? 8 : 6)
+                        .allowsHitTesting(false)
                     
-                    Spacer()
-                    
-                    // Compact header buttons - only in gaze track mode
-                    if mode == .gazeTrack {
-                        HStack(spacing: 8) {
-                            // Video/Camera toggle button
-                            Button(action: {
-                                videoManager.toggleVideoMode()
-                                uiManager.resetButtonHideTimer()
-                            }) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: videoManager.videoMode ? "camera" : "video")
-                                }
-                                .font(.caption)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(Color.purple.opacity(0.8))
-                                .cornerRadius(8)
-                            }
-                            
-                            // Export trajectory button
-                            Button(action: {
-                                trajectoryManager.showExportAlert = true
-                                uiManager.resetButtonHideTimer()
-                            }) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "square.and.arrow.up")
-                                }
-                                .font(.caption)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(Color.green.opacity(0.8))
-                                .cornerRadius(8)
-                                .opacity((eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory()) ? 0.5 : 1.0)
-                            }
-                            .disabled(eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory())
-                            
-                            // API Test button (for development/testing)
-                            Button(action: {
-                                testAPIConnection()
-                                uiManager.resetButtonHideTimer()
-                            }) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "wifi")
-                                }
-                                .font(.caption)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(Color.cyan.opacity(0.8))
-                                .cornerRadius(8)
-                                .opacity(trajectoryManager.isUploadingToML ? 0.5 : 1.0)
-                            }
-                            .disabled(trajectoryManager.isUploadingToML)
-                            
-                            // Visualize trajectory button
-                            Button(action: {
-                                trajectoryManager.showTrajectoryView.toggle()
-                                uiManager.resetButtonHideTimer()
-                            }) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "chart.line.uptrend.xyaxis")
-                                }
-                                .font(.caption)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(Color.orange.opacity(0.8))
-                                .cornerRadius(8)
-                                .opacity((eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory()) ? 0.5 : 1.0)
-                            }
-                            .disabled(eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory())
-                        }
+                    // 轨迹模式的白色边框
+                    if isTrajectoryMode {
+                        Circle()
+                            .stroke(Color.white, lineWidth: 2)
+                            .frame(width: 30, height: 30)
+                            .position(lookAtPoint)
+                            .opacity(0.9)
+                            .allowsHitTesting(false)
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 10)
-                
-                Spacer()
             }
-            .opacity(uiManager.showButtons ? 1 : 0)
-            .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
-            .zIndex(1000)
-            
-            // 中心按钮区域 - 根据模式显示不同按钮
-            VStack {
+        }
+    }
+    
+    var headerView: some View {
+        VStack {
+            HStack {
+                BackButton(action: {
+                    calibrationManager.stopCalibration()
+                    measurementManager.stopMeasurement()
+                    measurementManager.stopTrajectoryMeasurement()
+                    eyeGazeActive = false
+                    currentView = .landing
+                })
+                
                 Spacer()
                 
-                VStack(spacing: 20) {
+                if mode == .gazeTrack {
+                    headerButtons
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 15)
+            
+            Spacer()
+        }
+    }
+    
+    var headerButtons: some View {
+        HStack(spacing: 8) {
+            // Video/Camera toggle button
+            UnifiedButton(
+                action: {
+                    videoManager.toggleVideoMode()
+                    uiManager.resetButtonHideTimer()
+                },
+                icon: videoManager.videoMode ? "camera" : "video",
+                backgroundColor: Color.purple.opacity(0.8),
+                style: .compact
+            )
+            
+            // Export trajectory button
+            UnifiedButton(
+                action: {
+                    trajectoryManager.showExportAlert = true
+                    uiManager.resetButtonHideTimer()
+                },
+                icon: "square.and.arrow.up",
+                backgroundColor: Color.green.opacity(0.8),
+                style: .compact,
+                isDisabled: eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory()
+            )
+            
+            // Visualize trajectory button
+            UnifiedButton(
+                action: {
+                    trajectoryManager.showTrajectoryView.toggle()
+                    uiManager.resetButtonHideTimer()
+                },
+                icon: "chart.line.uptrend.xyaxis",
+                backgroundColor: Color.orange.opacity(0.8),
+                style: .compact,
+                isDisabled: eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory()
+            )
+        }
+    }
+    
+    var centralButtonArea: some View {
+        VStack {
+            Spacer()
+            
+            VStack(spacing: 20) {
                 Group {
                     // 校准按钮 - 只在校准模式显示
                     if mode == .calibration {
@@ -334,7 +328,6 @@ struct ContentView: View {
                         
                         // 8字形测量按钮
                         Button("8字测量") {
-                            // 启动8字形测量前先确保眼动追踪处于活跃状态
                             if !eyeGazeActive {
                                 eyeGazeActive = true
                                 print("自动启动眼动追踪以支持8字形测量")
@@ -346,11 +339,10 @@ struct ContentView: View {
                         .padding()
                         .background(Color.purple)
                         .cornerRadius(10)
-                        .disabled(measurementManager.isMeasuring) // 静态测量时禁用
+                        .disabled(measurementManager.isMeasuring)
                         
                         // 正弦函数轨迹测量按钮
                         Button("正弦函数轨迹测量") {
-                            // 启动正弦函数轨迹测量前先确保眼动追踪处于活跃状态
                             if !eyeGazeActive {
                                 eyeGazeActive = true
                                 print("自动启动眼动追踪以支持正弦函数轨迹测量")
@@ -362,129 +354,141 @@ struct ContentView: View {
                         .padding()
                         .background(Color.green)
                         .cornerRadius(10)
-                        .disabled(measurementManager.isMeasuring) // 静态测量时禁用
+                        .disabled(measurementManager.isMeasuring)
                     }
                 }
-                }
-                
-                Spacer()
-                Spacer() // 额外的spacer为底部滑块留出空间
             }
-            .opacity(uiManager.showButtons ? 1 : 0)
-            .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
             
-            // 底部滑块组 - 位于屏幕底部，统一管理所有滑块
-            VStack {
-                Spacer()
-                
-                VStack(spacing: 8) {
+            Spacer()
+            Spacer()
+        }
+        .opacity(uiManager.showButtons ? 1 : 0)
+        .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
+    }
+    
+    var bottomControlsArea: some View {
+        VStack {
+            Spacer()
+            
+            VStack(spacing: 8) {
                 // 视频透明度滑块（仅在视频模式下显示，且在眼动追踪模式）
                 if videoManager.videoMode && mode == .gazeTrack {
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("视频透明度: \(Int(videoManager.videoOpacity * 100))%")
-                            .font(.subheadline)
-                            .foregroundColor(.white)
-                            .padding(8)
-                            .background(Color.black.opacity(0.6))
-                            .cornerRadius(5)
-                        
-                        Slider(value: $videoManager.videoOpacity, in: 0.1...1.0, onEditingChanged: { editing in
-                            if editing {
-                                uiManager.resetButtonHideTimer()
-                            }
-                        })
-                        .padding(.horizontal)
-                        .background(Color.black.opacity(0.6))
-                        .cornerRadius(10)
-                        .padding(.horizontal, 10)
-                    }
-                    .padding(.vertical, 5)
+                    videoOpacitySlider
                 }
                 
                 // 简化的平滑控制滑块
                 if mode == .gazeTrack || mode == .measurement {
-                    HStack {
-                        Text("响应")
-                            .font(.caption2)
-                            .foregroundColor(.white.opacity(0.7))
-                        
-                        Slider(value: Binding(
-                            get: { Double(smoothingWindowSize) },
-                            set: {
-                                smoothingWindowSize = Int($0)
-                                arView?.resetSmoothingFilter() // 窗口大小变化时重置
-                            }
-                        ), in: 0.0...50.0, step: 1.0, onEditingChanged: { editing in
-                            if editing {
-                                uiManager.resetButtonHideTimer()
-                            }
-                        })
-                        .accentColor(.green)
-                        
-                        Text("\(smoothingWindowSize)")
-                            .font(.caption2)
-                            .foregroundColor(.white)
-                            .fontWeight(.medium)
-                            .frame(minWidth: 20)
-                        
-                        Text("稳定")
-                            .font(.caption2)
-                            .foregroundColor(.white.opacity(0.7))
-                    }
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                    .background(Color.black.opacity(0.6))
-                    .cornerRadius(10)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
+                    smoothingControlSlider
                 }
                 
                 // iPhone风格圆环开始/停止按钮 - 只在眼动追踪模式显示
                 if mode == .gazeTrack {
-                    HStack {
-                        Spacer()
-                        
-                        Button(action: {
-                            if let vc = self.getRootViewController() {
-                                self.checkCameraPermissionAndStartGazeTrack(presentingViewController: vc)
-                            } else {
-                                handleStartStop()
-                            }
-                            uiManager.resetButtonHideTimer()
-                        }) {
-                            ZStack {
-                                // 外圈
-                                Circle()
-                                    .stroke(Color.white, lineWidth: 4)
-                                    .frame(width: 70, height: 70)
-                                
-                                // 内圈
-                                Circle()
-                                    .fill(eyeGazeActive ? Color.red : Color.white)
-                                    .frame(width: eyeGazeActive ? 40 : 60, height: eyeGazeActive ? 40 : 60)
-                                
-                                // 停止状态显示方形
-                                if eyeGazeActive {
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .fill(Color.white)
-                                        .frame(width: 20, height: 20)
-                                }
-                            }
-                            .scaleEffect(eyeGazeActive ? 1.1 : 1.0)
-                            .animation(.easeInOut(duration: 0.2), value: eyeGazeActive)
-                        }
-                        
-                        Spacer()
-                    }
-                    .padding(.top, 15)
+                    circularStartStopButton
                 }
-                }
-                .padding(.bottom, 20)
-                .opacity(uiManager.showButtons ? 1 : 0)
-                .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
             }
-
-            // ML上传进度指示器
+            .padding(.bottom, 20)
+            .opacity(uiManager.showButtons ? 1 : 0)
+            .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
+        }
+    }
+    
+    var videoOpacitySlider: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text("视频透明度: \(Int(videoManager.videoOpacity * 100))%")
+                .font(.subheadline)
+                .foregroundColor(.white)
+                .padding(8)
+                .background(Color.black.opacity(0.6))
+                .cornerRadius(5)
+            
+            Slider(value: $videoManager.videoOpacity, in: 0.1...1.0, onEditingChanged: { editing in
+                if editing {
+                    uiManager.resetButtonHideTimer()
+                }
+            })
+            .padding(.horizontal)
+            .background(Color.black.opacity(0.6))
+            .cornerRadius(10)
+            .padding(.horizontal, 10)
+        }
+        .padding(.vertical, 5)
+    }
+    
+    var smoothingControlSlider: some View {
+        HStack {
+            Text("响应")
+                .font(.caption2)
+                .foregroundColor(.white.opacity(0.7))
+            
+            Slider(value: Binding(
+                get: { Double(smoothingWindowSize) },
+                set: {
+                    smoothingWindowSize = Int($0)
+                    arView?.resetSmoothingFilter()
+                }
+            ), in: 0.0...50.0, step: 1.0, onEditingChanged: { editing in
+                if editing {
+                    uiManager.resetButtonHideTimer()
+                }
+            })
+            .accentColor(.green)
+            
+            Text("\(smoothingWindowSize)")
+                .font(.caption2)
+                .foregroundColor(.white)
+                .fontWeight(.medium)
+                .frame(minWidth: 20)
+            
+            Text("稳定")
+                .font(.caption2)
+                .foregroundColor(.white.opacity(0.7))
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(Color.black.opacity(0.6))
+        .cornerRadius(10)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+    }
+    
+    var circularStartStopButton: some View {
+        HStack {
+            Spacer()
+            
+            Button(action: {
+                if let vc = self.getRootViewController() {
+                    self.checkCameraPermissionAndStartGazeTrack(presentingViewController: vc)
+                } else {
+                    handleStartStop()
+                }
+                uiManager.resetButtonHideTimer()
+            }) {
+                ZStack {
+                    Circle()
+                        .stroke(Color.white, lineWidth: 4)
+                        .frame(width: 70, height: 70)
+                    
+                    Circle()
+                        .fill(eyeGazeActive ? Color.red : Color.white)
+                        .frame(width: eyeGazeActive ? 40 : 60, height: eyeGazeActive ? 40 : 60)
+                    
+                    if eyeGazeActive {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.white)
+                            .frame(width: 20, height: 20)
+                    }
+                }
+                .scaleEffect(eyeGazeActive ? 1.1 : 1.0)
+                .animation(.easeInOut(duration: 0.2), value: eyeGazeActive)
+            }
+            
+            Spacer()
+        }
+        .padding(.top, 15)
+    }
+    
+    var mlUploadProgressView: some View {
+        Group {
             if trajectoryManager.isUploadingToML {
                 ZStack {
                     Color.black.opacity(0.7)
@@ -509,11 +513,14 @@ struct ContentView: View {
                 }
                 .zIndex(1000)
             }
-
-            // 轨迹可视化视图
+        }
+    }
+    
+    var trajectoryVisualizationOverlay: some View {
+        Group {
             if trajectoryManager.showTrajectoryView && !trajectoryManager.gazeTrajectory.isEmpty {
                 ZStack {
-                    Color.white
+                    Color.white.edgesIgnoringSafeArea(.all)
                     
                     TrajectoryVisualizationView(
                         gazeTrajectory: trajectoryManager.gazeTrajectory,
@@ -521,26 +528,86 @@ struct ContentView: View {
                         screenSize: UIScreen.main.bounds.size
                     )
                     
-                    // 关闭按钮
+                    trajectoryOverlayControls
+                }
+                .zIndex(1000)
+            }
+        }
+    }
+    
+    var trajectoryOverlayControls: some View {
+        VStack {
+            // 顶部按钮区域
+            HStack {
+                UnifiedButton(
+                    action: { trajectoryManager.showTrajectoryView = false },
+                    icon: "chevron.left",
+                    backgroundColor: Color.black.opacity(0.7)
+                )
+                
+                Spacer()
+                
+                HStack(spacing: 12) {
+                    UnifiedButton(
+                        action: { trajectoryManager.exportTrajectory {} },
+                        icon: "square.and.arrow.up",
+                        backgroundColor: Color.green.opacity(0.8)
+                    )
+                    
+                    UnifiedButton(
+                        action: { trajectoryManager.showTrajectoryView = false },
+                        icon: "xmark",
+                        backgroundColor: Color.red.opacity(0.8)
+                    )
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            
+            Spacer()
+            
+            // 底部信息区域
+            VStack(spacing: 12) {
+                Text("轨迹可视化")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.black)
+                
+                HStack(spacing: 20) {
                     VStack {
-                        HStack {
-                            Spacer()
-                            Button(action: {
-                                trajectoryManager.showTrajectoryView = false
-                            }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 30))
-                                    .foregroundColor(.black)
-                                    .padding()
-                            }
+                        Text("数据点")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                        Text("\(trajectoryManager.gazeTrajectory.count)")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.blue)
+                    }
+                    
+                    VStack {
+                        Text("时长")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                        if let duration = trajectoryManager.recordingDuration {
+                            Text("\(String(format: "%.1f", duration))s")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.green)
                         }
-                        Spacer()
                     }
                 }
-                .zIndex(100)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(12)
             }
-
-            // 测量结果视图 - 添加此视图
+            .padding(.horizontal, 20)
+            .padding(.bottom, 40)
+        }
+    }
+    
+    var measurementResultsOverlay: some View {
+        Group {
             if measurementManager.showMeasurementResults {
                 ZStack {
                     Color.black.opacity(0.8)
@@ -580,16 +647,18 @@ struct ContentView: View {
                     .background(Color.gray.opacity(0.5))
                     .cornerRadius(20)
                 }
-                .zIndex(200) // 确保显示在最上层
+                .zIndex(200)
             }
-            
-            // 轨迹测量进度指示器 - 只在真正测量时显示，倒计时期间不显示
+        }
+    }
+    
+    var trajectoryProgressIndicator: some View {
+        Group {
             if measurementManager.isTrajectoryMeasuring && !measurementManager.isTrajectoryCountingDown {
                 VStack {
                     HStack {
                         Spacer()
                         VStack(spacing: 10) {
-                            // 根据轨迹类型显示不同标题
                             Text(measurementManager.currentTrajectoryType == .figure8 ? "8字测量" : "正弦函数轨迹测量")
                                 .font(.headline)
                                 .foregroundColor(.white)
@@ -618,240 +687,60 @@ struct ContentView: View {
                 }
                 .zIndex(150)
             }
-            
-            // 8字形轨迹测量结果视图
+        }
+    }
+    
+    var trajectoryResultsOverlay: some View {
+        Group {
             if measurementManager.showTrajectoryResults, let results = measurementManager.trajectoryResults {
-                ZStack {
-                    Color.black.opacity(0.8)
-                        .edgesIgnoringSafeArea(.all)
-                        .onTapGesture {
-                            // 点击背景也可以关闭弹窗
-                            measurementManager.forceCloseResultsAndVisualization()
-                        }
-                    
-                    ScrollView {
-                        VStack(spacing: 20) {
-                            // 根据轨迹类型显示不同标题
-                            Text(results.trajectoryType == .figure8 ? "8字测量结果" : "正弦函数轨迹测量结果")
-                                .font(.title)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                            
-                            // 统计信息
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("📊 统计数据")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                    .fontWeight(.bold)
-
-                                Text("Mean Euclidean: \(String(format: "%.4f", results.meanEuclideanErrorInCM)) (CM)")
-                                    .foregroundColor(.white)
-                                Text("Data size: \(results.dataSize)")
-                                    .foregroundColor(.white)
-                                Text("平均误差pt: \(String(format: "%.1f", results.averageError)) pt")
-                                    .foregroundColor(.white)
-                                Text("最大误差pt: \(String(format: "%.1f", results.maxError)) pt")
-                                    .foregroundColor(.white)
-                                Text("最小误差pt: \(String(format: "%.1f", results.minError)) pt")
-                                    .foregroundColor(.white)
-                                Text("测量时长: \(String(format: "%.1f", results.totalDuration)) 秒")
-                                    .foregroundColor(.white)
-                                Text("屏幕覆盖率: \(String(format: "%.1f", results.coveragePercentage * 100))%")
-                                    .foregroundColor(.white)
-                            }
-                            .padding()
-                            .background(Color.gray.opacity(0.3))
-                            .cornerRadius(10)
-                            
-                            // 误差分布
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("📈 误差分析")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                    .fontWeight(.bold)
-                                
-                                let errorRanges = analyzeErrorDistribution(results.trajectoryPoints)
-                                ForEach(errorRanges, id: \.range) { errorRange in
-                                    Text("\(errorRange.range): \(errorRange.count) 个点 (\(String(format: "%.1f", errorRange.percentage))%)")
-                                        .foregroundColor(.white)
-                                }
-                            }
-                            .padding()
-                            .background(Color.gray.opacity(0.3))
-                            .cornerRadius(10)
-                            
-                            // 按钮组
-                            HStack(spacing: 20) {
-                                Button("显示轨迹对比") {
-                                    measurementManager.showTrajectoryVisualization = true
-                                    // 不关闭结果页面，这样返回时还能看到结果
-                                }
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .padding()
-                                .background(Color.blue)
-                                .cornerRadius(10)
-                                .contentShape(Rectangle()) // 确保整个按钮区域都可以点击
-                                
-                                Button("关闭") {
-                                    withAnimation(.easeInOut(duration: 0.3)) {
-                                        measurementManager.forceCloseResultsAndVisualization()
-                                    }
-                                }
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .padding()
-                                .background(Color.purple)
-                                .cornerRadius(10)
-                                .contentShape(Rectangle()) // 确保整个按钮区域都可以点击
-                            }
-                        }
-                        .padding(30)
-                    }
-                    .background(Color.gray.opacity(0.5))
-                    .cornerRadius(20)
-                    .onTapGesture {
-                        // 防止点击内容区域时关闭弹窗
-                    }
-                }
-                .zIndex(200) // 确保显示在最上层
-            }
-            
-            // 轨迹对比可视化视图
-            if measurementManager.showTrajectoryVisualization, let results = measurementManager.trajectoryResults {
                 TrajectoryComparisonView(
                     trajectoryResults: results,
-                    screenSize: Device.frameSize,
-                    showVisualization: $measurementManager.showTrajectoryVisualization
+                    screenSize: UIScreen.main.bounds.size,
+                    showVisualization: $measurementManager.showTrajectoryResults
                 )
-                .zIndex(300) // 确保显示在最上层
-            }
-
-            // 倒计时显示 - gaze track模式
-            if trajectoryManager.showCountdown {
-                Text("\(trajectoryManager.countdownValue)")
-                    .font(.system(size: 100, weight: .bold))
-                    .foregroundColor(.white)
-                    .padding(30)
-                    .background(Color.black.opacity(0.7))
-                    .cornerRadius(20)
-                    .transition(.scale)
-            }
-            
-            // 轨迹测量倒计时显示
-            if measurementManager.showTrajectoryCountdown {
-                VStack(spacing: 20) {
-                    // 根据轨迹类型显示不同标题
-                    Text(measurementManager.currentTrajectoryType == .figure8 ? "8字测量" : "正弦函数轨迹测量")
-                        .font(.title)
-                        .foregroundColor(.white)
-                        .fontWeight(.bold)
-                    
-                    Text("\(measurementManager.trajectoryCountdownValue)")
-                        .font(.system(size: 120, weight: .bold))
-                        .foregroundColor(.purple)
-                        .padding(40)
-                        .background(Color.black.opacity(0.8))
-                        .cornerRadius(30)
-                    
-                    Text("准备开始测量")
-                        .font(.headline)
-                        .foregroundColor(.white.opacity(0.8))
-                }
-                .transition(.scale.combined(with: .opacity))
-                .animation(.spring(response: 0.5, dampingFraction: 0.6), value: measurementManager.trajectoryCountdownValue)
-            }
-
-            // 视线点显示 - 根据模式显示不同颜色
-            if let lookAtPoint = lookAtPoint, (eyeGazeActive || calibrationManager.isCalibrating) {
-                Circle()
-                    .fill(calibrationManager.isCalibrating ? Color.yellow : 
-                          (mode == .measurement ? Color.green : Color.red))
-                    .frame(width: isWinking ? 100 : 40, height: isWinking ? 100 : 40)
-                    .position(lookAtPoint)
-            }
-            
-            // 8字形测量过程中的实时距离显示
-            if measurementManager.isTrajectoryMeasuring && !measurementManager.isTrajectoryCountingDown {
-                VStack {
-                    Spacer()
-                    
-                    HStack {
-                        Spacer()
-                        
-                        VStack(spacing: 6) {
-                            Text("实时距离")
-                                .font(.caption)
-                                .foregroundColor(.white.opacity(0.8))
-                            
-                            Text("\(String(format: "%.1f", measurementManager.currentEyeToScreenDistance)) cm")
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                            
-                            Text("眼睛到屏幕距离")
-                                .font(.caption2)
-                                .foregroundColor(.white.opacity(0.6))
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
-                        .background(Color.black.opacity(0.7))
-                        .cornerRadius(10)
-                        .padding(.bottom, 30)
-                        
-                        Spacer()
-                    }
-                }
                 .zIndex(160)
             }
         }
+    }
+    
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            backgroundLayer
+            videoPlayerLayer
+            measurementARView
+            calibrationInstructionView
+            calibrationProgressView
+            gridOverlayView
+            calibrationPointView
+            trajectoryPointView
+            
+            headerView
+                .opacity(uiManager.showButtons ? 1 : 0)
+                .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
+                .zIndex(1000)
+            
+            centralButtonArea
+            bottomControlsArea
+            mlUploadProgressView
+            trajectoryVisualizationOverlay
+            measurementResultsOverlay
+            trajectoryProgressIndicator
+            trajectoryResultsOverlay
+            
+            // 最后渲染 gaze point，确保在所有其他元素之上
+            gazePointView
+                .zIndex(2000)
+        }
         .animation(.easeInOut, value: calibrationManager.temporaryMessage)
         .onTapGesture {
-            // 点击屏幕时显示按钮并重置计时器
             uiManager.showButtons = true
             uiManager.resetButtonHideTimer()
         }
         .onAppear {
-            // 初始化
-            videoManager.setupVideoPlayer()
-            
-            // 在校准和测量模式下停止视频以减少系统警告
-            if mode == .calibration || mode == .measurement {
-                videoManager.videoMode = false
-                videoManager.player.pause()
-            }
-            
-            // 设置测量完成后的回调，自动关闭gaze track
-            measurementManager.onMeasurementCompleted = {
-                DispatchQueue.main.async {
-                    print("📱 测量完成，自动关闭eye gaze tracking以节省能耗")
-                    eyeGazeActive = false
-                }
-            }
-            
-            // 如果是自动启动模式，自动开始眼动追踪
-            if autoStart && mode == .gazeTrack {
-                print("🚀 [AUTO START] 自动启动眼动追踪模式")
-                print("🚀 [AUTO START] 校准状态: \(calibrationManager.calibrationCompleted)")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    if let vc = self.getRootViewController() {
-                        self.checkCameraPermissionAndStartGazeTrack(presentingViewController: vc)
-                    } else {
-                        self.handleStartStop()
-                    }
-                }
-            }
-            
-            uiManager.setupButtonHideTimer()
+            setupView()
         }
         .onDisappear {
-            // 清理资源
-            calibrationManager.stopCalibration()
-            measurementManager.stopMeasurement()
-            measurementManager.stopTrajectoryMeasurement()  // 停止8字形测量
-            eyeGazeActive = false
-            uiManager.cleanup()
-            videoManager.cleanup()
+            cleanupView()
         }
         .alert(isPresented: $uiManager.showExportAlert) {
             Alert(title: Text("导出完成"),
@@ -879,6 +768,46 @@ struct ContentView: View {
         }
     }
     
+    // MARK: - Helper Methods
+    
+    private func setupView() {
+        videoManager.setupVideoPlayer()
+        
+        if mode == .calibration || mode == .measurement {
+            videoManager.videoMode = false
+            videoManager.player.pause()
+        }
+        
+        measurementManager.onMeasurementCompleted = {
+            DispatchQueue.main.async {
+                print("📱 测量完成，自动关闭eye gaze tracking以节省能耗")
+                eyeGazeActive = false
+            }
+        }
+        
+        if autoStart && mode == .gazeTrack {
+            print("🚀 [AUTO START] 自动启动眼动追踪模式")
+            print("🚀 [AUTO START] 校准状态: \(calibrationManager.calibrationCompleted)")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                if let vc = self.getRootViewController() {
+                    self.checkCameraPermissionAndStartGazeTrack(presentingViewController: vc)
+                } else {
+                    self.handleStartStop()
+                }
+            }
+        }
+        
+        uiManager.setupButtonHideTimer()
+    }
+    
+    private func cleanupView() {
+        calibrationManager.stopCalibration()
+        measurementManager.stopMeasurement()
+        measurementManager.stopTrajectoryMeasurement()
+        eyeGazeActive = false
+        uiManager.cleanup()
+        videoManager.cleanup()
+    }
     // button functions
     
     // 处理开始/停止
@@ -976,25 +905,6 @@ struct ContentView: View {
         }
     }
     
-    // 测试API连接
-    func testAPIConnection() {
-        print("🧪 开始测试Hugging Face API连接...")
-        trajectoryManager.testMLConnection { message in
-            DispatchQueue.main.async {
-                let alert = UIAlertController(
-                    title: "API连接测试",
-                    message: message ?? "测试完成",
-                    preferredStyle: .alert
-                )
-                alert.addAction(UIAlertAction(title: "确定", style: .default))
-                
-                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                   let rootVC = windowScene.windows.first?.rootViewController {
-                    rootVC.present(alert, animated: true)
-                }
-            }
-        }
-    }
     
     
     // 分析误差分布
@@ -1057,6 +967,7 @@ struct ContentView: View {
         }
     }
 }
+
 
 // GridOverlayView is imported from GazeTrackLabView
 

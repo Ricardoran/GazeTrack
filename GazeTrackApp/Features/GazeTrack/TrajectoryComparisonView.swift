@@ -27,21 +27,13 @@ struct TrajectoryComparisonView: View {
                 // 顶部标题栏 - 统一水平布局
                 HStack {
                     // 返回按钮
-                    Button(action: {
-                        showVisualization = false
-                    }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "chevron.left")
-                                .font(.title3)
-                            Text("返回结果")
-                                .font(.body)
-                        }
-                        .foregroundColor(.blue)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(8)
-                    }
+                    UnifiedButton(
+                        action: { showVisualization = false },
+                        icon: "chevron.left",
+                        text: "返回结果",
+                        backgroundColor: Color.blue.opacity(0.8),
+                        style: .compact
+                    )
                     
                     Spacer()
                     
@@ -54,15 +46,13 @@ struct TrajectoryComparisonView: View {
                     Spacer()
                     
                     // 图例切换按钮
-                    Button(showLegend ? "隐藏图例" : "显示图例") {
-                        showLegend.toggle()
-                    }
-                    .font(.body)
-                    .foregroundColor(.blue)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(8)
+                    UnifiedButton(
+                        action: { showLegend.toggle() },
+                        icon: showLegend ? "eye.slash" : "eye",
+                        text: showLegend ? "隐藏图例" : "显示图例",
+                        backgroundColor: Color.blue.opacity(0.8),
+                        style: .compact
+                    )
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 50)

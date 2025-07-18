@@ -21,6 +21,15 @@ class TrajectoryManager: ObservableObject {
     // ML模型服务
     private let mlService = MLModelService()
     
+    // 计算录制时长
+    var recordingDuration: TimeInterval? {
+        guard !gazeTrajectory.isEmpty else { return nil }
+        if let first = gazeTrajectory.first, let last = gazeTrajectory.last {
+            return last.elapsedTime - first.elapsedTime
+        }
+        return nil
+    }
+    
     // 添加新的轨迹点
     func addTrajectoryPoint(point: CGPoint) {
         guard let startTime = recordingStartTime, !isCountingDown else { return }
@@ -172,17 +181,6 @@ class TrajectoryManager: ObservableObject {
         return mlService.errorMessage
     }
     
-    // 测试ML API连接
-    func testMLConnection(completion: @escaping (String?) -> Void) {
-        mlService.testMLConnection { result in
-            switch result {
-            case .success(let message):
-                completion(message)
-            case .failure(let error):
-                completion("连接测试失败: \(error.localizedDescription)")
-            }
-        }
-    }
     
     // 重置轨迹数据
     func resetTrajectory() {
