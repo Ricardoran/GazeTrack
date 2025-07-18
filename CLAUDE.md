@@ -211,6 +211,20 @@ GazeTrackApp/
 - Gaze trajectories include timestamps and x,y coordinates
 - Built-in validation prevents export of incomplete data
 
+## ML Model Integration
+
+### Real-Time Analysis
+- **Hugging Face API**: Integrated with professional gaze analysis model
+- **Two-step API**: POST for event_id → GET for analysis results
+- **SSE Response**: Parses Server-Sent Events format correctly
+- **Professional Metrics**: Attention score, stability, coverage, movement patterns
+
+### API Configuration
+- **Endpoint**: `https://ricardo15222024-gaze-track-analyzer.hf.space/gradio_api/call/predict`
+- **Status**: ✅ Production-ready and tested
+- **Fallback**: Automatic fallback to test API if needed
+- **Error Handling**: Comprehensive error handling and retry logic
+
 ## Common Issues
 
 ### Technical Challenges
@@ -218,6 +232,7 @@ GazeTrackApp/
 - **Coordinate accuracy**: Calibration is essential for accurate gaze mapping
 - **Device requirements**: Features fail gracefully on unsupported devices
 - **Memory management**: Long recording sessions require proper cleanup
+- **API Integration**: ML analysis requires network connectivity
 
 ### Gaze Tracking Robustness Issues
 - **Head Movement Sensitivity**: Micro head movements cause gaze point drift even when eyes remain fixed

@@ -207,7 +207,6 @@ struct ContentView: View {
                             }) {
                                 HStack(spacing: 6) {
                                     Image(systemName: videoManager.videoMode ? "camera" : "video")
-                                    Text(videoManager.videoMode ? "Cam" : "Video")
                                 }
                                 .font(.caption)
                                 .foregroundColor(.white)
@@ -219,12 +218,11 @@ struct ContentView: View {
                             
                             // Export trajectory button
                             Button(action: {
-                                handleExportTrajectory()
+                                trajectoryManager.showExportAlert = true
                                 uiManager.resetButtonHideTimer()
                             }) {
                                 HStack(spacing: 6) {
                                     Image(systemName: "square.and.arrow.up")
-                                    Text("Export")
                                 }
                                 .font(.caption)
                                 .foregroundColor(.white)
@@ -236,6 +234,24 @@ struct ContentView: View {
                             }
                             .disabled(eyeGazeActive || trajectoryManager.gazeTrajectory.isEmpty || !trajectoryManager.isValidTrajectory())
                             
+                            // API Test button (for development/testing)
+                            Button(action: {
+                                testAPIConnection()
+                                uiManager.resetButtonHideTimer()
+                            }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "wifi")
+                                }
+                                .font(.caption)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color.cyan.opacity(0.8))
+                                .cornerRadius(8)
+                                .opacity(trajectoryManager.isUploadingToML ? 0.5 : 1.0)
+                            }
+                            .disabled(trajectoryManager.isUploadingToML)
+                            
                             // Visualize trajectory button
                             Button(action: {
                                 trajectoryManager.showTrajectoryView.toggle()
@@ -243,7 +259,6 @@ struct ContentView: View {
                             }) {
                                 HStack(spacing: 6) {
                                     Image(systemName: "chart.line.uptrend.xyaxis")
-                                    Text("View")
                                 }
                                 .font(.caption)
                                 .foregroundColor(.white)
@@ -467,6 +482,32 @@ struct ContentView: View {
                 .padding(.bottom, 20)
                 .opacity(uiManager.showButtons ? 1 : 0)
                 .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
+            }
+
+            // ML上传进度指示器
+            if trajectoryManager.isUploadingToML {
+                ZStack {
+                    Color.black.opacity(0.7)
+                        .edgesIgnoringSafeArea(.all)
+                    
+                    VStack(spacing: 20) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .blue))
+                            .scaleEffect(1.5)
+                        
+                        Text("正在上传到ML模型...")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        
+                        Text("分析数据中，请稍候")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .padding(40)
+                    .background(Color.black.opacity(0.8))
+                    .cornerRadius(20)
+                }
+                .zIndex(1000)
             }
 
             // 轨迹可视化视图
@@ -817,10 +858,24 @@ struct ContentView: View {
                   message: Text("轨迹导出成功。"),
                   dismissButton: .default(Text("确定")))
         }
-        .alert(isPresented: $trajectoryManager.showExportAlert) {
-            Alert(title: Text("Export Complete"),
-                  message: Text("Trajectory exported successfully."),
-                  dismissButton: .default(Text("OK")))
+        .alert("选择导出方式", isPresented: $trajectoryManager.showExportAlert) {
+            Button("CSV文件") {
+                handleExportTrajectory()
+            }
+            Button("上传到ML模型") {
+                handleMLUpload()
+            }
+            Button("取消", role: .cancel) { }
+        } message: {
+            Text("请选择导出轨迹数据的方式")
+        }
+        .alert("ML模型分析", isPresented: $trajectoryManager.showMLUploadAlert) {
+            Button("上传分析") {
+                handleMLUpload()
+            }
+            Button("取消", role: .cancel) { }
+        } message: {
+            Text("将轨迹数据发送到ML模型进行分析？")
         }
     }
     
@@ -835,8 +890,6 @@ struct ContentView: View {
             eyeGazeActive = true
             calibrationManager.stopCalibration()
             
-            // 重置Kalman滤波器
-            resetKalmanFilter()
             
             // 开始倒计时
             trajectoryManager.startCountdown {
@@ -873,14 +926,76 @@ struct ContentView: View {
     func handleExportTrajectory() {
         print("导出包含 \(trajectoryManager.gazeTrajectory.count) 个数据点的轨迹...")
         trajectoryManager.exportTrajectory {
-            trajectoryManager.showExportAlert = true
+            // Export completed
         }
     }
     
-    // 重置Kalman滤波器
-    func resetKalmanFilter() {
-        arView?.resetKalmanFilter()
+    // 处理ML模型上传
+    func handleMLUpload() {
+        print("上传包含 \(trajectoryManager.gazeTrajectory.count) 个数据点的轨迹到ML模型...")
+        trajectoryManager.uploadToMLModel { result in
+            DispatchQueue.main.async {
+                if let result = result {
+                    // 显示成功结果
+                    showMLResult(result)
+                } else {
+                    // 显示错误
+                    showMLError()
+                }
+            }
+        }
     }
+    
+    // 显示ML结果
+    func showMLResult(_ result: MLModelResponse) {
+        let alert = UIAlertController(
+            title: "ML模型分析完成",
+            message: "分析结果: \(result.result)\n处理数据点: \(result.processedDataPoints)\n\(result.message)",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "确定", style: .default))
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootVC = windowScene.windows.first?.rootViewController {
+            rootVC.present(alert, animated: true)
+        }
+    }
+    
+    // 显示ML错误
+    func showMLError() {
+        let alert = UIAlertController(
+            title: "上传失败",
+            message: trajectoryManager.mlErrorMessage ?? "未知错误",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "确定", style: .default))
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootVC = windowScene.windows.first?.rootViewController {
+            rootVC.present(alert, animated: true)
+        }
+    }
+    
+    // 测试API连接
+    func testAPIConnection() {
+        print("🧪 开始测试Hugging Face API连接...")
+        trajectoryManager.testMLConnection { message in
+            DispatchQueue.main.async {
+                let alert = UIAlertController(
+                    title: "API连接测试",
+                    message: message ?? "测试完成",
+                    preferredStyle: .alert
+                )
+                alert.addAction(UIAlertAction(title: "确定", style: .default))
+                
+                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                   let rootVC = windowScene.windows.first?.rootViewController {
+                    rootVC.present(alert, animated: true)
+                }
+            }
+        }
+    }
+    
     
     // 分析误差分布
     func analyzeErrorDistribution(_ points: [TrajectoryMeasurementPoint]) -> [(range: String, count: Int, percentage: Float)] {
