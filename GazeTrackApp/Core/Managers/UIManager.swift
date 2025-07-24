@@ -54,11 +54,11 @@ struct BackButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: "arrow.left")
-                .font(.title2)
+                .font(.system(size: 18, weight: .medium))
                 .foregroundColor(.white)
-                .padding()
+                .frame(width: 44, height: 44)
                 .background(Color.black.opacity(0.6))
-                .clipShape(Circle())
+                .cornerRadius(12)
         }
     }
 }

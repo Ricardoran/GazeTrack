@@ -44,7 +44,7 @@ struct GazeTrackLabView: View {
     @StateObject private var labManager = GazeTrackLabManager()
     @StateObject private var uiManager = UIManager()
     @State private var smoothingWindowSize: Int = 10 // 默认10点窗口
-    @State private var currentMethod: EyeTrackingMethod = .dualEyesHitTest // 当前追踪方法
+    @State private var currentMethod: EyeTrackingMethod = .lookAtPointMatrix // 当前追踪方法
     @State private var showGrid: Bool = false // 是否显示网格标识
     
     var body: some View {
@@ -99,7 +99,7 @@ struct GazeTrackLabView: View {
                         },
                         icon: showGrid ? "grid.circle.fill" : "grid.circle",
                         backgroundColor: Color.black.opacity(0.6),
-                        style: .compact
+                        style: .large
                     )
                 }
                 .padding(.horizontal, 20)
@@ -154,10 +154,13 @@ struct GazeTrackLabView: View {
                     .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
             }
             
-            // 网格覆盖层
-            if showGrid {
-                GridOverlayView()
-                    .allowsHitTesting(false) // 不阻挡AR视图的交互
+            // 网格覆盖层 - 使用条件渲染确保完全清理
+            Group {
+                if showGrid {
+                    GridOverlayView()
+                        .allowsHitTesting(false) // 不阻挡AR视图的交互
+                        .id("grid-overlay") // 强制重新创建
+                }
             }
             
             // Average gaze indicator only
@@ -173,6 +176,7 @@ struct GazeTrackLabView: View {
             }
         }
         .onAppear {
+            ARSessionCoordinator.shared.requestSession(for: .gazeTrackLab, viewID: "GazeTrackLabView")
             labManager.startTracking()
             // 设置初始窗口大小
             labManager.updateSmoothingWindowSize(smoothingWindowSize)
@@ -181,8 +185,17 @@ struct GazeTrackLabView: View {
             uiManager.setupButtonHideTimer()
         }
         .onDisappear {
-            labManager.stopTracking()
+            // 首先清理managers
+            labManager.cleanup()
             uiManager.cleanup()
+            
+            // 重置grid状态，防止影响其他视图
+            showGrid = false
+            
+            // 延迟释放AR会话，避免在view切换过程中造成冲突
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                ARSessionCoordinator.shared.releaseSession(for: "GazeTrackLabView")
+            }
         }
     }
 }
@@ -240,6 +253,8 @@ struct GridOverlayView: View {
                 }
             }
         }
+        .allowsHitTesting(false) // 确保整个GridOverlayView不接收任何触摸事件
+        .contentShape(Rectangle().size(.zero)) // 明确设置内容形状为零大小
     }
 }
 

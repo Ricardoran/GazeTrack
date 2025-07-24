@@ -7,14 +7,24 @@ struct GazeTrackLabARViewContainer: UIViewRepresentable {
     @Binding var smoothingWindowSize: Int
     @Binding var trackingMethod: EyeTrackingMethod
     
+    private let viewID = "GazeTrackLabARView"
+    
     func makeUIView(context: Context) -> GazeTrackLabARSCNView {
         let arView = GazeTrackLabARSCNView(manager: manager, smoothingWindowSize: smoothingWindowSize, trackingMethod: trackingMethod)
+        
+        // 注册到AR协调器
+        ARSessionCoordinator.shared.setActiveSession(arView.session)
+        
         return arView
     }
     
     func updateUIView(_ uiView: GazeTrackLabARSCNView, context: Context) {
         uiView.updateSmoothingWindowSize(smoothingWindowSize)
         uiView.updateTrackingMethod(trackingMethod)
+    }
+    
+    static func dismantleUIView(_ uiView: GazeTrackLabARSCNView, coordinator: ()) {
+        uiView.cleanupGracefully()
     }
 }
 
@@ -71,7 +81,9 @@ class GazeTrackLabARSCNView: ARSCNView, ARSCNViewDelegate {
         let screenGeometry = SCNPlane(width: 1, height: 1)
         screenGeometry.firstMaterial?.isDoubleSided = true
         screenGeometry.firstMaterial?.fillMode = .fill
-        screenGeometry.firstMaterial?.diffuse.contents = UIColor.green.withAlphaComponent(0.5)
+        // 设置为完全透明，不阻挡UI交互
+        screenGeometry.firstMaterial?.diffuse.contents = UIColor.clear
+        screenGeometry.firstMaterial?.transparency = 0.0
 
         let node = SCNNode()
         node.geometry = screenGeometry
@@ -363,6 +375,44 @@ class GazeTrackLabARSCNView: ARSCNView, ARSCNViewDelegate {
     /// 更新追踪方法
     func updateTrackingMethod(_ method: EyeTrackingMethod) {
         currentTrackingMethod = method
+    }
+    
+    /// 清理AR视图和节点
+    func cleanup() {
+        print("🧹 [CLEANUP] Starting AR view cleanup")
+        
+        // 完全停止并重置AR session
+        session.pause()
+        
+        // 在主线程上执行UI相关的清理
+        DispatchQueue.main.async {
+            // 从pointOfView中移除nodeInFrontOfScreen节点，这个是关键！
+            self.pointOfView?.childNodes.forEach { node in
+                if node === self.nodeInFrontOfScreen {
+                    print("🧹 [CLEANUP] Removing nodeInFrontOfScreen from pointOfView")
+                    node.removeFromParentNode()
+                }
+            }
+            self.nodeInFrontOfScreen.removeFromParentNode()
+            
+            // 清理其他节点
+            self.leftEyeNode.removeFromParentNode()
+            self.rightEyeNode.removeFromParentNode()
+            self.endPointLeftEye.removeFromParentNode()
+            self.endPointRightEye.removeFromParentNode()
+            
+            // 清理pointOfView的所有子节点
+            self.pointOfView?.childNodes.forEach { $0.removeFromParentNode() }
+            
+            // 清理delegate和scene
+            self.delegate = nil
+            self.scene.rootNode.childNodes.forEach { $0.removeFromParentNode() }
+            
+            // 移除这个ARSCNView自身从父视图
+            self.removeFromSuperview()
+            
+            print("🧹 [CLEANUP] AR view cleanup completed")
+        }
     }
     
 }

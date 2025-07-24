@@ -56,4 +56,11 @@ class GazeTrackLabManager: ObservableObject {
         currentEyeToScreenDistance = distance
     }
     
+    /// 清理管理器状态
+    func cleanup() {
+        stopTracking()
+        resetTracking()
+        currentEyeToScreenDistance = 30.0
+    }
+    
 }

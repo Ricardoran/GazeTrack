@@ -10,16 +10,22 @@ struct MainAppView: View {
             switch currentView {
             case .landing:
                 LandingPageView(currentView: $currentView)
+                    .id("landing")
             case .calibration:
                 CalibrationView(currentView: $currentView, calibrationManager: sharedCalibrationManager, measurementManager: sharedMeasurementManager)
+                    .id("calibration")
             case .measurement:
                 MeasurementView(currentView: $currentView, calibrationManager: sharedCalibrationManager, measurementManager: sharedMeasurementManager)
+                    .id("measurement")
             case .gazeTrack:
                 GazeTrackView(currentView: $currentView, calibrationManager: sharedCalibrationManager, measurementManager: sharedMeasurementManager)
+                    .id("gazeTrack")
             case .gazeTrackAutoStart:
                 GazeTrackAutoStartView(currentView: $currentView, calibrationManager: sharedCalibrationManager, measurementManager: sharedMeasurementManager)
+                    .id("gazeTrackAutoStart")
             case .gazeTrackLab:
                 GazeTrackLabView(currentView: $currentView)
+                    .id("gazeTrackLab")
             }
         }
         .animation(.easeInOut(duration: 0.3), value: currentView)

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LandingPageView: View {
     @Binding var currentView: AppView
+    @StateObject private var arCoordinator = ARSessionCoordinator.shared
     
     var body: some View {
         ZStack {
@@ -73,6 +74,14 @@ struct LandingPageView: View {
                     .font(.footnote)
                     .foregroundColor(.secondary)
                     .padding(.bottom, 30)
+            }
+        }
+        .onAppear {
+            // 延迟检查AR会话状态，避免在view切换过程中操作
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                if self.arCoordinator.isSessionActive {
+                    self.arCoordinator.forceCleanupAll()
+                }
             }
         }
     }
