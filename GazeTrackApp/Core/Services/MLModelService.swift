@@ -1,7 +1,8 @@
 import Foundation
 import SwiftUI
 
-struct MLModelResponse: Codable {
+struct MLModelResponse: Codable, Identifiable {
+    let id = UUID()
     let result: Int
     let message: String
     let processedDataPoints: Int

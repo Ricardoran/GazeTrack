@@ -2,12 +2,6 @@ import SwiftUI
 import Combine
 import Foundation
 
-struct GazeData: Codable {
-    let elapsedTime: TimeInterval // 记录开始后的时间（秒）
-    let x: CGFloat
-    let y: CGFloat
-}
-
 class TrajectoryManager: ObservableObject {
     @Published var gazeTrajectory: [GazeData] = []
     @Published var recordingStartTime: Date? = nil
@@ -20,6 +14,9 @@ class TrajectoryManager: ObservableObject {
     
     // ML模型服务
     private let mlService = MLModelService()
+    
+    // 历史记录管理器
+    private let historyManager = HistoryManager()
     
     // 计算录制时长
     var recordingDuration: TimeInterval? {
@@ -96,6 +93,35 @@ class TrajectoryManager: ObservableObject {
             gazeTrajectory = gazeTrajectory.filter { $0.elapsedTime <= cutoffTime }
             
             print("已删除轨迹数据的最后3秒。剩余数据点：\(gazeTrajectory.count)")
+            
+            // 自动保存到历史记录
+            saveToHistory()
+        }
+    }
+    
+    // 保存当前记录到历史
+    private func saveToHistory() {
+        guard !gazeTrajectory.isEmpty else { return }
+        
+        // 转换GazeData到GazePoint格式
+        let gazePoints = gazeTrajectory.map { gazeData in
+            GazePoint(x: gazeData.x, y: gazeData.y, relativeTimestamp: gazeData.elapsedTime)
+        }
+        
+        // 创建记录元数据
+        let metadata = RecordMetadata(
+            calibrationUsed: false, // TODO: 从CalibrationManager获取实际状态
+            smoothingWindowSize: 30, // TODO: 从实际设置获取
+            trackingMethod: "Standard Gaze Track"
+        )
+        
+        // 创建记录
+        let record = GazeRecord(gazePoints: gazePoints, metadata: metadata)
+        
+        // 只保存有效记录
+        if record.isValid {
+            historyManager.addRecord(record)
+            print("✅ 记录已自动保存到历史：\(record.formattedTitle)")
         }
     }
     

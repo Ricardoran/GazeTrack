@@ -64,6 +64,16 @@ struct LandingPageView: View {
                     )
                     .frame(width: 280, height: 56)
                     
+                    // History Button
+                    UnifiedButton(
+                        action: { currentView = .history },
+                        icon: "clock.arrow.circlepath",
+                        text: "History",
+                        backgroundColor: Color.purple,
+                        style: .large
+                    )
+                    .frame(width: 280, height: 56)
+                    
                 }
                 .padding(.horizontal, 30)
                 
@@ -94,6 +104,7 @@ enum AppView {
     case gazeTrack
     case gazeTrackAutoStart // 新增：自动启动的gaze track模式
     case gazeTrackLab // 新增：双眼分别追踪模式（Gaze Track Lab）
+    case history // 新增：历史记录模式
 }
 
 #if DEBUG

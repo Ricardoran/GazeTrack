@@ -26,6 +26,9 @@ struct MainAppView: View {
             case .gazeTrackLab:
                 GazeTrackLabView(currentView: $currentView)
                     .id("gazeTrackLab")
+            case .history:
+                HistoryView(currentView: $currentView)
+                    .id("history")
             }
         }
         .animation(.easeInOut(duration: 0.3), value: currentView)
