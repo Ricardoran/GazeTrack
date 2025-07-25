@@ -60,7 +60,7 @@ struct HistoryView: View {
                             
                             Image(systemName: "clock.arrow.circlepath")
                                 .font(.system(size: 60))
-                                .foregroundColor(.gray)
+                                .foregroundColor(.primary.opacity(0.4))
                             
                             Text("No Records Yet")
                                 .font(.title2)
@@ -69,7 +69,7 @@ struct HistoryView: View {
                             
                             Text("Complete a gaze tracking session to see your records here")
                                 .font(.body)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.primary.opacity(0.7))
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 40)
                             
@@ -195,34 +195,39 @@ struct RecordCard: View {
                     // Metadata
                     HStack {
                         Label(record.formattedDuration, systemImage: "clock")
+                            .foregroundColor(.primary)
                         
                         Spacer()
                         
                         Label("\(record.gazePoints.count) points", systemImage: "eye")
+                            .foregroundColor(.primary)
                         
                         if let method = record.metadata.trackingMethod {
                             Spacer()
                             Text(method)
                                 .font(.caption)
+                                .foregroundColor(.white)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(Color.blue.opacity(0.2))
+                                .background(Color.blue.opacity(0.8))
                                 .cornerRadius(8)
                         }
                     }
                     .font(.caption)
-                    .foregroundColor(.secondary)
                 }
                 
                 Spacer()
                 
                 Image(systemName: "chevron.right")
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.primary.opacity(0.6))
             }
             .padding()
-            .background(Color.white.opacity(0.8))
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(.regularMaterial)
+                    .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+            )
             .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
         }
         .buttonStyle(PlainButtonStyle())
     }

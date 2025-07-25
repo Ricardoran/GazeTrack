@@ -22,17 +22,17 @@ struct LandingPageView: View {
                     .foregroundColor(.primary)
                     .padding(.top, 50)
                 
-                // Main buttons
+//                Main buttons
                 VStack(spacing: 20) {
                     // Calibration Button
-                    UnifiedButton(
-                        action: { currentView = .calibration },
-                        icon: "target",
-                        text: "Calibration",
-                        backgroundColor: Color.red,
-                        style: .large
-                    )
-                    .frame(width: 280, height: 56)
+                    // UnifiedButton(
+                    //     action: { currentView = .calibration },
+                    //     icon: "target",
+                    //     text: "Calibration",
+                    //     backgroundColor: Color.red,
+                    //     style: .large
+                    // )
+                    // .frame(width: 280, height: 56)
                     
                     // Measurement Button
                     UnifiedButton(

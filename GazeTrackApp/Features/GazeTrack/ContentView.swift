@@ -14,7 +14,7 @@ struct ContentView: View {
     @State private var isWinking: Bool = false
     @State private var timerPublisher = Timer.publish(every: 1.0/60.0, on: .main, in: .common).autoconnect()
     @State private var showCalibrationGreeting = false
-    @State private var smoothingWindowSize: Int = 30 // 简单平滑窗口大小，默认30点
+    @State private var smoothingWindowSize: Int = 10 // 简单平滑窗口大小，默认10点
     @State private var arView: CustomARView?
 
     // 管理器
@@ -140,11 +140,8 @@ struct ContentView: View {
     
     var calibrationPointView: some View {
         Group {
-            if (calibrationManager.isCalibrating && calibrationManager.showCalibrationPoint) || 
-               (measurementManager.isMeasuring && measurementManager.showCalibrationPoint) {
-                let calibrationPoint = calibrationManager.isCalibrating ? 
-                    calibrationManager.currentCalibrationPoint : 
-                    measurementManager.currentMeasurementPoint
+            if calibrationManager.isCalibrating && calibrationManager.showCalibrationPoint {
+                let calibrationPoint = calibrationManager.currentCalibrationPoint
                 
                 if let point = calibrationPoint {
                     Circle()
@@ -152,7 +149,7 @@ struct ContentView: View {
                         .frame(width: 30, height: 30)
                         .position(point)
                         .transition(.scale.combined(with: .opacity))
-                        .animation(.easeInOut(duration: 0.3), value: calibrationManager.isCalibrating ? calibrationManager.currentPointIndex : measurementManager.currentPointIndex)
+                        .animation(.easeInOut(duration: 0.3), value: calibrationManager.currentPointIndex)
                 }
             }
         }
@@ -183,16 +180,15 @@ struct ContentView: View {
         Group {
             if let lookAtPoint = lookAtPoint, eyeGazeActive {
                 let isTrajectoryMode = measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown
-                let isMeasurementMode = measurementManager.isMeasuring || isTrajectoryMode
                 
                 ZStack {
                     // 主要的 gaze point - 根据模式选择颜色
-                    let gazeColor = isMeasurementMode ? Color.green : Color.red
+                    let gazeColor = isTrajectoryMode ? Color.green : Color.red
                     
                     Circle()
                         .fill(gazeColor)
-                        .frame(width: isMeasurementMode ? (isTrajectoryMode ? 30 : 35) : 40, 
-                               height: isMeasurementMode ? (isTrajectoryMode ? 30 : 35) : 40)
+                        .frame(width: isTrajectoryMode ? 30 : 40, 
+                               height: isTrajectoryMode ? 30 : 40)
                         .position(lookAtPoint)
                         .opacity(isTrajectoryMode ? 0.9 : 0.8)
                         .shadow(color: gazeColor, radius: isTrajectoryMode ? 8 : 6)
@@ -217,7 +213,6 @@ struct ContentView: View {
             HStack {
                 BackButton(action: {
                     calibrationManager.stopCalibration()
-                    measurementManager.stopMeasurement()
                     measurementManager.stopTrajectoryMeasurement()
                     eyeGazeActive = false
                     currentView = .landing
@@ -315,49 +310,6 @@ struct ContentView: View {
                         }
                     }
                     
-                    // 测量按钮 - 只在测量模式显示
-                    if mode == .measurement {
-                        Button("开始测量(deprecated)") {
-                            measurementManager.startMeasurement()
-                        }
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(Color.orange)
-                        .cornerRadius(10)
-                        .disabled(true)
-                        .opacity(0.5)
-                        
-                        // 8字形测量按钮
-                        Button("8字测量") {
-                            if !eyeGazeActive {
-                                eyeGazeActive = true
-                                print("自动启动眼动追踪以支持8字形测量")
-                            }
-                            measurementManager.startTrajectoryMeasurement()
-                        }
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(Color.purple)
-                        .cornerRadius(10)
-                        .disabled(measurementManager.isMeasuring)
-                        
-                        // 正弦函数轨迹测量按钮
-                        Button("正弦函数轨迹测量") {
-                            if !eyeGazeActive {
-                                eyeGazeActive = true
-                                print("自动启动眼动追踪以支持正弦函数轨迹测量")
-                            }
-                            measurementManager.startSinusoidalTrajectoryMeasurement()
-                        }
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(Color.green)
-                        .cornerRadius(10)
-                        .disabled(measurementManager.isMeasuring)
-                    }
                 }
             }
             
@@ -373,6 +325,44 @@ struct ContentView: View {
             Spacer()
             
             VStack(spacing: 8) {
+                // 测量模式：8字形和正弦函数轨迹测量按钮
+                if mode == .measurement {
+                    HStack(spacing: 12) {
+                        // 8字形测量按钮
+                        Button("8字测量") {
+                            if !eyeGazeActive {
+                                eyeGazeActive = true
+                                print("自动启动眼动追踪以支持8字形测量")
+                            }
+                            measurementManager.startTrajectoryMeasurement()
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(Color.purple)
+                        .cornerRadius(10)
+                        .disabled(measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown)
+                        
+                        // 正弦函数轨迹测量按钮
+                        Button("正弦函数轨迹测量") {
+                            if !eyeGazeActive {
+                                eyeGazeActive = true
+                                print("自动启动眼动追踪以支持正弦函数轨迹测量")
+                            }
+                            measurementManager.startSinusoidalTrajectoryMeasurement()
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(Color.green)
+                        .cornerRadius(10)
+                        .disabled(measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown)
+                    }
+                    .padding(.bottom, 12)
+                }
+                
                 // 视频透明度滑块（仅在视频模式下显示，且在眼动追踪模式）
                 if videoManager.videoMode && mode == .gazeTrack {
                     videoOpacitySlider
@@ -608,51 +598,6 @@ struct ContentView: View {
         }
     }
     
-    var measurementResultsOverlay: some View {
-        Group {
-            if measurementManager.showMeasurementResults {
-                ZStack {
-                    Color.black.opacity(0.8)
-                        .edgesIgnoringSafeArea(.all)
-                    
-                    VStack(spacing: 20) {
-                        Text("测量结果")
-                            .font(.title)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                        
-                        Text("平均误差: \(String(format: "%.2f", measurementManager.averageError)) pt")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                        
-                        VStack(alignment: .leading, spacing: 10) {
-                            ForEach(0..<measurementManager.measurementResults.count, id: \.self) { index in
-                                let result = measurementManager.measurementResults[index]
-                                Text("点 \(index + 1): 误差 = \(String(format: "%.2f", result.error)) pt")
-                                    .foregroundColor(.white)
-                            }
-                        }
-                        .padding()
-                        .background(Color.gray.opacity(0.3))
-                        .cornerRadius(10)
-                        
-                        Button("关闭") {
-                            measurementManager.showMeasurementResults = false
-                        }
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(Color.blue)
-                        .cornerRadius(10)
-                    }
-                    .padding(30)
-                    .background(Color.gray.opacity(0.5))
-                    .cornerRadius(20)
-                }
-                .zIndex(200)
-            }
-        }
-    }
     
     var trajectoryProgressIndicator: some View {
         Group {
@@ -725,7 +670,6 @@ struct ContentView: View {
             bottomControlsArea
             mlUploadProgressView
             trajectoryVisualizationOverlay
-            measurementResultsOverlay
             trajectoryProgressIndicator
             trajectoryResultsOverlay
             
@@ -778,6 +722,11 @@ struct ContentView: View {
         if mode == .calibration || mode == .measurement {
             videoManager.videoMode = false
             videoManager.player.pause()
+            
+            // 在measurement mode下确保按钮显示
+            if mode == .measurement {
+                uiManager.showButtons = true
+            }
         }
         
         measurementManager.onMeasurementCompleted = {
@@ -789,7 +738,6 @@ struct ContentView: View {
         
         if autoStart && mode == .gazeTrack {
             print("🚀 [AUTO START] 自动启动眼动追踪模式")
-            print("🚀 [AUTO START] 校准状态: \(calibrationManager.calibrationCompleted)")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 if let vc = self.getRootViewController() {
                     self.checkCameraPermissionAndStartGazeTrack(presentingViewController: vc)
@@ -804,7 +752,6 @@ struct ContentView: View {
     
     private func cleanupView() {
         calibrationManager.stopCalibration()
-        measurementManager.stopMeasurement()
         measurementManager.stopTrajectoryMeasurement()
         eyeGazeActive = false
         uiManager.cleanup()
@@ -848,10 +795,6 @@ struct ContentView: View {
         calibrationManager.startCalibration()
     }
     
-    // 处理测量
-    func handleMeasurement() {
-        measurementManager.startMeasurement()
-    }
     
     // 处理导出轨迹
     func handleExportTrajectory() {

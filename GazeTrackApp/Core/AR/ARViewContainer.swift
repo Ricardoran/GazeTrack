@@ -89,12 +89,6 @@ class CustomARView: ARView, ARSessionDelegate {
             updateDetectGazePoint(faceAnchor: faceAnchor)
         }
         
-        // 如果在测量模式下，收集测量数据
-        if measurementManager.isMeasuring && measurementManager.showCalibrationPoint {
-            if let point = lookAtPoint {
-                measurementManager.collectMeasurementPoint(point)
-            }
-        }
         
         // 如果在8字形轨迹测量模式下，收集轨迹测量数据
         if measurementManager.isTrajectoryMeasuring {
@@ -216,9 +210,9 @@ class CustomARView: ARView, ARSessionDelegate {
     func updateDetectGazePoint(faceAnchor: ARFaceAnchor){
         let rawFocusPoint = detectGazePoint(faceAnchor: faceAnchor)
         
-        // 在测量模式下也应用平滑处理
+        // 在轨迹测量模式下也应用平滑处理
         let finalFocusPoint: CGPoint
-        if measurementManager.isMeasuring || measurementManager.isTrajectoryMeasuring {
+        if measurementManager.isTrajectoryMeasuring {
             finalFocusPoint = applySmoothing(rawPoint: rawFocusPoint)
             
         } else {
@@ -239,7 +233,7 @@ class CustomARView: ARView, ARSessionDelegate {
             // Gaze tracking模式：始终应用平滑
             finalFocusPoint = applySmoothing(rawPoint: rawFocusPoint)
             
-        } else if measurementManager.isMeasuring || measurementManager.isTrajectoryMeasuring {
+        } else if measurementManager.isTrajectoryMeasuring {
             // 测量模式：也应用平滑
             finalFocusPoint = applySmoothing(rawPoint: rawFocusPoint)
             
@@ -263,7 +257,7 @@ class CustomARView: ARView, ARSessionDelegate {
             // Gaze tracking模式：始终应用平滑
             finalFocusPoint = applySmoothing(rawPoint: rawFocusPoint)
             
-        } else if measurementManager.isMeasuring || measurementManager.isTrajectoryMeasuring {
+        } else if measurementManager.isTrajectoryMeasuring {
             // 测量模式：也应用平滑
             finalFocusPoint = applySmoothing(rawPoint: rawFocusPoint)
             
