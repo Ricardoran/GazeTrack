@@ -16,6 +16,7 @@ struct ContentView: View {
     @State private var showCalibrationGreeting = false
     @State private var smoothingWindowSize: Int = 10 // 简单平滑窗口大小，默认10点
     @State private var arView: CustomARView?
+    @State private var currentMLResult: MLModelResponse? // ML分析结果
 
     // 管理器
     @ObservedObject var calibrationManager: CalibrationManager
@@ -712,6 +713,16 @@ struct ContentView: View {
         } message: {
             Text("将轨迹数据发送到ML模型进行分析？")
         }
+        .sheet(item: $currentMLResult, onDismiss: {
+            print("📱 [CONTENT VIEW] ML result sheet dismissed")
+        }) { result in
+            MLResultView(result: result, onDismiss: {
+                currentMLResult = nil
+            })
+            .onAppear {
+                print("📱 [CONTENT VIEW] Presenting ML result sheet with score: \(result.result)")
+            }
+        }
     }
     
     // MARK: - Helper Methods
@@ -822,17 +833,11 @@ struct ContentView: View {
     
     // 显示ML结果
     func showMLResult(_ result: MLModelResponse) {
-        let alert = UIAlertController(
-            title: "ML模型分析完成",
-            message: "分析结果: \(result.result)\n处理数据点: \(result.processedDataPoints)\n\(result.message)",
-            preferredStyle: .alert
-        )
-        alert.addAction(UIAlertAction(title: "确定", style: .default))
+        print("📊 [CONTENT VIEW] Setting ML result and showing sheet")
+        print("📊 [CONTENT VIEW] Result score: \(result.result), message: \(result.message)")
         
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootVC = windowScene.windows.first?.rootViewController {
-            rootVC.present(alert, animated: true)
-        }
+        // 设置结果数据，sheet会自动显示
+        self.currentMLResult = result
     }
     
     // 显示ML错误
