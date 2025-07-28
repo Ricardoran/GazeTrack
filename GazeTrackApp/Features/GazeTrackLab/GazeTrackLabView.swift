@@ -1,8 +1,8 @@
 import SwiftUI
 
 enum EyeTrackingMethod: CaseIterable {
-    case dualEyesHitTest       // 双眼分别计算 + hitTest
-    case lookAtPointMatrix     // lookAtPoint + 矩阵变换 (主要gaze track方法)
+    case dualEyesHitTest       // Binocular calculation + hitTest
+    case lookAtPointMatrix     // lookAtPoint + matrix transform (main gaze track method)
     case lookAtPointHitTest    // lookAtPoint + hitTest
     
     var displayName: String {
@@ -43,9 +43,9 @@ struct GazeTrackLabView: View {
     @Binding var currentView: AppView
     @StateObject private var labManager = GazeTrackLabManager()
     @StateObject private var uiManager = UIManager()
-    @State private var smoothingWindowSize: Int = 10 // 默认10点窗口
-    @State private var currentMethod: EyeTrackingMethod = .lookAtPointMatrix // 当前追踪方法
-    @State private var showGrid: Bool = false // 是否显示网格标识
+    @State private var smoothingWindowSize: Int = 10 // Default 10-point window
+    @State private var currentMethod: EyeTrackingMethod = .lookAtPointMatrix // Current tracking method
+    @State private var showGrid: Bool = false // Whether to show grid overlay
     
     var body: some View {
         ZStack {
@@ -66,9 +66,9 @@ struct GazeTrackLabView: View {
                     
                     Spacer()
                     
-                    // 方法切换按钮 (原来的标题位置)
+                    // Method switching button (original title position)
                     Button(action: {
-                        // 循环切换到下一个方法
+                        // Cycle to next method
                         let allMethods = EyeTrackingMethod.allCases
                         if let currentIndex = allMethods.firstIndex(of: currentMethod) {
                             let nextIndex = (currentIndex + 1) % allMethods.count
@@ -91,7 +91,7 @@ struct GazeTrackLabView: View {
                     
                     Spacer()
                     
-                    // 网格切换按钮
+                    // Grid toggle button
                     UnifiedButton(
                         action: {
                             showGrid.toggle()
@@ -109,9 +109,9 @@ struct GazeTrackLabView: View {
                 
                 Spacer()
                 
-                // 简化的平滑控制滑块
+                // Simplified smoothing control slider
                 HStack {
-                    Text("响应")
+                    Text("Response")
                         .font(.caption2)
                         .foregroundColor(.white.opacity(0.7))
                     
@@ -134,7 +134,7 @@ struct GazeTrackLabView: View {
                         .fontWeight(.medium)
                         .frame(minWidth: 20)
                     
-                    Text("稳定")
+                    Text("Stability")
                         .font(.caption2)
                         .foregroundColor(.white.opacity(0.7))
                 }
@@ -147,27 +147,27 @@ struct GazeTrackLabView: View {
                 .opacity(uiManager.showButtons ? 1 : 0)
                 .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
                 
-                // 距离显示组件
+                // Distance display component
                 EyeToScreenDistanceView(distance: labManager.currentEyeToScreenDistance)
                     .padding()
                     .opacity(uiManager.showButtons ? 1 : 0)
                     .animation(.easeInOut(duration: 0.3), value: uiManager.showButtons)
             }
             
-            // 网格覆盖层 - 使用条件渲染确保完全清理
+            // Grid overlay - use conditional rendering to ensure complete cleanup
             Group {
                 if showGrid {
                     GridOverlayView()
-                        .allowsHitTesting(false) // 不阻挡AR视图的交互
-                        .id("grid-overlay") // 强制重新创建
+                        .allowsHitTesting(false) // Don't block AR view interactions
+                        .id("grid-overlay") // Force recreation
                 }
             }
             
             // Average gaze indicator only
             if labManager.isTracking {
                 GeometryReader { geometry in
-                    // 直接使用gaze点坐标，无需添加safe area offset
-                    // 这与原有gaze track的显示方式保持一致
+                    // Use gaze point coordinates directly, no need to add safe area offset
+                    // This maintains consistency with original gaze track display
                     Circle()
                         .fill(currentMethod.color.opacity(0.8))
                         .frame(width: 25, height: 25)
@@ -178,21 +178,21 @@ struct GazeTrackLabView: View {
         .onAppear {
             ARSessionCoordinator.shared.requestSession(for: .gazeTrackLab, viewID: "GazeTrackLabView")
             labManager.startTracking()
-            // 设置初始窗口大小
+            // Set initial window size
             labManager.updateSmoothingWindowSize(smoothingWindowSize)
-            // 启动UI自动隐藏计时器
+            // Start UI auto-hide timer
             uiManager.showButtons = true
             uiManager.setupButtonHideTimer()
         }
         .onDisappear {
-            // 首先清理managers
+            // First clean up managers
             labManager.cleanup()
             uiManager.cleanup()
             
-            // 重置grid状态，防止影响其他视图
+            // Reset grid state to prevent affecting other views
             showGrid = false
             
-            // 延迟释放AR会话，避免在view切换过程中造成冲突
+            // Delay AR session release to avoid conflicts during view switching
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 ARSessionCoordinator.shared.releaseSession(for: "GazeTrackLabView")
             }
@@ -219,16 +219,16 @@ struct GridOverlayView: View {
             let cellHeight = screenHeight / 7
             
             ZStack {
-                // 绘制网格线
+                // Draw grid lines
                 Path { path in
-                    // 垂直线
+                    // Vertical lines
                     for i in 1..<4 {
                         let x = CGFloat(i) * cellWidth
                         path.move(to: CGPoint(x: x, y: 0))
                         path.addLine(to: CGPoint(x: x, y: screenHeight))
                     }
                     
-                    // 水平线
+                    // Horizontal lines
                     for i in 1..<7 {
                         let y = CGFloat(i) * cellHeight
                         path.move(to: CGPoint(x: 0, y: y))
@@ -237,7 +237,7 @@ struct GridOverlayView: View {
                 }
                 .stroke(Color.white.opacity(0.3), lineWidth: 1)
                 
-                // 添加标签
+                // Add labels
                 ForEach(0..<7, id: \.self) { row in
                     ForEach(0..<4, id: \.self) { col in
                         let label = gridLabels[row][col]
@@ -253,8 +253,8 @@ struct GridOverlayView: View {
                 }
             }
         }
-        .allowsHitTesting(false) // 确保整个GridOverlayView不接收任何触摸事件
-        .contentShape(Rectangle().size(.zero)) // 明确设置内容形状为零大小
+        .allowsHitTesting(false) // Ensure GridOverlayView doesn't receive any touch events
+        .contentShape(Rectangle().size(.zero)) // Explicitly set content shape to zero size
     }
 }
 

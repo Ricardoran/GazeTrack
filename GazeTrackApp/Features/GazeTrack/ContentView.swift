@@ -103,7 +103,7 @@ struct ContentView: View {
     var calibrationInstructionView: some View {
         Group {
             if showCalibrationGreeting {
-                Text("请紧盯校准点，当提示：开始校准后，移动眼球，使光标至校准点")
+                Text("Please focus on the calibration point. When prompted to start calibration, move your eyes to align the cursor with the calibration point")
                     .font(.largeTitle)
                     .foregroundColor(.white)
                     .padding()
@@ -279,7 +279,7 @@ struct ContentView: View {
                 Group {
                     // 校准按钮 - 只在校准模式显示
                     if mode == .calibration {
-                        Button("开始校准") {
+                        Button("Start Calibration") {
                             if let vc = self.getRootViewController() {
                                 checkCameraPermissionAndStartCalibration(presentingViewController: vc)
                             } else {
@@ -300,7 +300,7 @@ struct ContentView: View {
                         
                         // 快捷跳转到Gaze Track按钮 - 只在校准完成后显示
                         if calibrationManager.calibrationCompleted {
-                            Button("开始眼动追踪") {
+                            Button("Start Gaze Tracking") {
                                 currentView = .gazeTrackAutoStart
                             }
                             .font(.headline)
@@ -330,7 +330,7 @@ struct ContentView: View {
                 if mode == .measurement {
                     HStack(spacing: 12) {
                         // 8字形测量按钮
-                        Button("8字测量") {
+                        Button("Figure-8 Measurement") {
                             if !eyeGazeActive {
                                 eyeGazeActive = true
                                 print("自动启动眼动追踪以支持8字形测量")
@@ -346,7 +346,7 @@ struct ContentView: View {
                         .disabled(measurementManager.isTrajectoryMeasuring || measurementManager.isTrajectoryCountingDown)
                         
                         // 正弦函数轨迹测量按钮
-                        Button("正弦函数轨迹测量") {
+                        Button("Sinusoidal Trajectory Measurement") {
                             if !eyeGazeActive {
                                 eyeGazeActive = true
                                 print("自动启动眼动追踪以支持正弦函数轨迹测量")
@@ -387,7 +387,7 @@ struct ContentView: View {
     
     var videoOpacitySlider: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text("视频透明度: \(Int(videoManager.videoOpacity * 100))%")
+            Text("Video Opacity: \(Int(videoManager.videoOpacity * 100))%")
                 .font(.subheadline)
                 .foregroundColor(.white)
                 .padding(8)
@@ -409,7 +409,7 @@ struct ContentView: View {
     
     var smoothingControlSlider: some View {
         HStack {
-            Text("响应")
+            Text("Response")
                 .font(.caption2)
                 .foregroundColor(.white.opacity(0.7))
             
@@ -432,7 +432,7 @@ struct ContentView: View {
                 .fontWeight(.medium)
                 .frame(minWidth: 20)
             
-            Text("稳定")
+            Text("Stability")
                 .font(.caption2)
                 .foregroundColor(.white.opacity(0.7))
         }
@@ -492,11 +492,11 @@ struct ContentView: View {
                             .progressViewStyle(CircularProgressViewStyle(tint: .blue))
                             .scaleEffect(1.5)
                         
-                        Text("正在上传到ML模型...")
+                        Text("Uploading to ML model...")
                             .font(.headline)
                             .foregroundColor(.white)
                         
-                        Text("分析数据中，请稍候")
+                        Text("Analyzing data, please wait")
                             .font(.subheadline)
                             .foregroundColor(.white.opacity(0.8))
                     }
@@ -561,14 +561,14 @@ struct ContentView: View {
             
             // 底部信息区域
             VStack(spacing: 12) {
-                Text("轨迹可视化")
+                Text("Trajectory Visualization")
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundColor(.black)
                 
                 HStack(spacing: 20) {
                     VStack {
-                        Text("数据点")
+                        Text("Data Points")
                             .font(.caption)
                             .foregroundColor(.gray)
                         Text("\(trajectoryManager.gazeTrajectory.count)")
@@ -578,7 +578,7 @@ struct ContentView: View {
                     }
                     
                     VStack {
-                        Text("时长")
+                        Text("Duration")
                             .font(.caption)
                             .foregroundColor(.gray)
                         if let duration = trajectoryManager.recordingDuration {
@@ -607,12 +607,12 @@ struct ContentView: View {
                     HStack {
                         Spacer()
                         VStack(spacing: 10) {
-                            Text(measurementManager.currentTrajectoryType == .figure8 ? "8字测量" : "正弦函数轨迹测量")
+                            Text(measurementManager.currentTrajectoryType == .figure8 ? "Figure-8 Measurement" : "Sinusoidal Trajectory Measurement")
                                 .font(.headline)
                                 .foregroundColor(.white)
                                 .fontWeight(.bold)
                             
-                            Text("进度: \(Int(measurementManager.trajectoryProgress * 100))%")
+                            Text("Progress: \(Int(measurementManager.trajectoryProgress * 100))%")
                                 .font(.subheadline)
                                 .foregroundColor(.white)
                             
@@ -622,7 +622,7 @@ struct ContentView: View {
                                 .background(Color.white.opacity(0.3))
                                 .cornerRadius(5)
                             
-                            Text("请跟随紫色轨迹点移动眼球")
+                            Text("Please follow the purple trajectory point with your eyes")
                                 .font(.caption)
                                 .foregroundColor(.white.opacity(0.8))
                         }
@@ -690,28 +690,28 @@ struct ContentView: View {
             cleanupView()
         }
         .alert(isPresented: $uiManager.showExportAlert) {
-            Alert(title: Text("导出完成"),
-                  message: Text("轨迹导出成功。"),
-                  dismissButton: .default(Text("确定")))
+            Alert(title: Text("Export Complete"),
+                  message: Text("Trajectory exported successfully."),
+                  dismissButton: .default(Text("OK")))
         }
-        .alert("选择导出方式", isPresented: $trajectoryManager.showExportAlert) {
-            Button("CSV文件") {
+        .alert("Select Export Method", isPresented: $trajectoryManager.showExportAlert) {
+            Button("CSV File") {
                 handleExportTrajectory()
             }
-            Button("上传到ML模型") {
+            Button("Upload to ML Model") {
                 handleMLUpload()
             }
-            Button("取消", role: .cancel) { }
+            Button("Cancel", role: .cancel) { }
         } message: {
-            Text("请选择导出轨迹数据的方式")
+            Text("Please select a method to export trajectory data")
         }
-        .alert("ML模型分析", isPresented: $trajectoryManager.showMLUploadAlert) {
-            Button("上传分析") {
+        .alert("ML Model Analysis", isPresented: $trajectoryManager.showMLUploadAlert) {
+            Button("Upload for Analysis") {
                 handleMLUpload()
             }
-            Button("取消", role: .cancel) { }
+            Button("Cancel", role: .cancel) { }
         } message: {
-            Text("将轨迹数据发送到ML模型进行分析？")
+            Text("Send trajectory data to ML model for analysis?")
         }
         .sheet(item: $currentMLResult, onDismiss: {
             print("📱 [CONTENT VIEW] ML result sheet dismissed")
@@ -843,11 +843,11 @@ struct ContentView: View {
     // 显示ML错误
     func showMLError() {
         let alert = UIAlertController(
-            title: "上传失败",
-            message: trajectoryManager.mlErrorMessage ?? "未知错误",
+            title: "Upload Failed",
+            message: trajectoryManager.mlErrorMessage ?? "Unknown error",
             preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: "确定", style: .default))
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
         
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let rootVC = windowScene.windows.first?.rootViewController {

@@ -9,7 +9,7 @@ class UIManager: ObservableObject {
     
     private var hideButtonsTimer: Timer? = nil
     
-    // 设置按钮隐藏计时器
+    // Set up button hide timer
     func setupButtonHideTimer() {
         hideButtonsTimer?.invalidate()
         hideButtonsTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
@@ -18,7 +18,7 @@ class UIManager: ObservableObject {
             }
         }
         
-        // 添加通知监听
+        // Add notification listeners
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(resetButtonHideTimerFromNotification),
@@ -31,14 +31,14 @@ class UIManager: ObservableObject {
         resetButtonHideTimer()
     }
     
-    // 在cleanup方法中添加移除观察者
+    // Remove observers in cleanup method
     func cleanup() {
         hideButtonsTimer?.invalidate()
         hideButtonsTimer = nil
         NotificationCenter.default.removeObserver(self, name: .init("ResetButtonTimer"), object: nil)
     }
     
-    // 重置按钮隐藏计时器
+    // Reset button hide timer
     func resetButtonHideTimer() {
         lastInteractionTime = Date()
         showButtons = true
@@ -67,14 +67,14 @@ struct EyeToScreenDistanceView: View {
     let distance: Float
     let title: String
     
-    init(distance: Float, title: String = "眼睛到屏幕距离") {
+    init(distance: Float, title: String = "Eye to Screen Distance") {
         self.distance = distance
         self.title = title
     }
     
     var body: some View {
         VStack(spacing: 6) {
-            Text("实时距离")
+            Text("Live Distance")
                 .font(.caption)
                 .foregroundColor(.white.opacity(0.8))
             
@@ -98,8 +98,8 @@ struct EyeToScreenDistanceView: View {
 
 struct UnifiedButton: View {
     enum Style {
-        case compact  // 主界面紧凑样式
-        case large    // 轨迹视图大按钮样式
+        case compact  // Main interface compact style
+        case large    // Trajectory view large button style
     }
     
     let action: () -> Void

@@ -24,32 +24,24 @@ struct TrajectoryComparisonView: View {
             Color.white.edgesIgnoringSafeArea(.all)
             
             VStack {
-                // 顶部标题栏 - 统一水平布局
+                // Top title bar - unified horizontal layout
                 HStack {
-                    // 返回按钮
+                    // Back button
                     UnifiedButton(
                         action: { showVisualization = false },
                         icon: "chevron.left",
-                        text: "返回结果",
+                        text: "Back to Results",
                         backgroundColor: Color.blue.opacity(0.8),
                         style: .compact
                     )
                     
                     Spacer()
                     
-                    // 标题
-                    Text("轨迹对比分析")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.black)
-                    
-                    Spacer()
-                    
-                    // 图例切换按钮
+                    // Legend toggle button
                     UnifiedButton(
                         action: { showLegend.toggle() },
                         icon: showLegend ? "eye.slash" : "eye",
-                        text: showLegend ? "隐藏图例" : "显示图例",
+                        text: showLegend ? "Hide Legend" : "Show Legend",
                         backgroundColor: Color.blue.opacity(0.8),
                         style: .compact
                     )
@@ -58,7 +50,7 @@ struct TrajectoryComparisonView: View {
                 .padding(.top, 50)
                 .padding(.bottom, 10)
                 
-                // 轨迹可视化区域
+                // Trajectory visualization area
                 GeometryReader { geometry in
                     let scale = min(geometry.size.width / screenSize.width, 
                                    geometry.size.height / screenSize.height) * 0.9
@@ -68,13 +60,13 @@ struct TrajectoryComparisonView: View {
                     let offsetY = (geometry.size.height - scaledHeight) / 2
                     
                     ZStack {
-                        // 背景框
+                        // Background frame
                         Rectangle()
                             .stroke(Color.gray, lineWidth: 2)
                             .frame(width: scaledWidth, height: scaledHeight)
                             .position(x: geometry.size.width/2, y: geometry.size.height/2)
                         
-                        // Ground Truth 轨迹（8字形）
+                        // Ground Truth trajectory (figure-8)
                         Path { path in
                             let groundTruthPoints = generateGroundTruthTrajectory()
                             
@@ -93,11 +85,11 @@ struct TrajectoryComparisonView: View {
                         .stroke(Color.red, lineWidth: 3)
                         
                         
-                        // 采样点标记 - 加粗显示
+                        // Sample point markers - bold display
                         ForEach(Array(sampleTrajectoryPoints().enumerated()), id: \.offset) { index, point in
                             Circle()
                                 .fill(Color.blue.opacity(0.8))
-                                .frame(width: 6, height: 6)  // 加粗从4增加到6
+                                .frame(width: 6, height: 6)  // Bold from 4 to 6
                                 .position(x: offsetX + point.x * scale, 
                                          y: offsetY + point.y * scale)
                         }
@@ -105,17 +97,17 @@ struct TrajectoryComparisonView: View {
                     }
                 }
                 
-                // 底部图例和统计信息
+                // Bottom legend and statistics
                 if showLegend {
                     VStack(spacing: 12) {
-                        // 图例说明
+                        // Legend description
                         HStack(spacing: 25) {
                             HStack(spacing: 8) {
                                 Rectangle()
                                     .fill(Color.red)
                                     .frame(width: 24, height: 4)
                                     .cornerRadius(2)
-                                Text("目标轨迹")
+                                Text("Target Trajectory")
                                     .font(.subheadline)
                                     .foregroundColor(.black)
                             }
@@ -124,40 +116,40 @@ struct TrajectoryComparisonView: View {
                                 Circle()
                                     .fill(Color.blue.opacity(0.8))
                                     .frame(width: 8, height: 8)
-                                Text("实际轨迹")
+                                Text("Actual Trajectory")
                                     .font(.subheadline)
                                     .foregroundColor(.black)
                             }
                         }
                         .padding(.bottom, 8)
                         
-                        // 统计数据 - 优化布局
+                        // Statistical data - optimized layout
                         VStack(spacing: 12) {
-                            // 第一行：主要误差指标
+                            // First row: main error metrics
                             HStack(spacing: 15) {
                                 StatCard(
-                                    title: "平均距离误差",
+                                    title: "Average Distance Error",
                                     value: "\(String(format: "%.3f", trajectoryResults.meanEuclideanErrorInCM)) cm",
                                     color: .red
                                 )
                                 
                                 StatCard(
-                                    title: "平均角度误差",
+                                    title: "Average Angle Error",
                                     value: "\(String(format: "%.3f", trajectoryResults.meanEuclideanErrorInDegrees))°",
                                     color: .blue
                                 )
                             }
                             
-                            // 第二行：辅助信息
+                            // Second row: auxiliary information
                             HStack(spacing: 15) {
                                 StatCard(
-                                    title: "采样点数",
+                                    title: "Sample Points",
                                     value: "\(sampleTrajectoryPoints().count)",
                                     color: .green
                                 )
                                 
                                 StatCard(
-                                    title: "观测距离",
+                                    title: "Observation Distance",
                                     value: "\(String(format: "%.1f", trajectoryResults.averageEyeToScreenDistance)) cm",
                                     color: .purple
                                 )
@@ -175,7 +167,7 @@ struct TrajectoryComparisonView: View {
         }
     }
     
-    // 生成Ground Truth轨迹（根据轨迹类型）
+    // Generate Ground Truth trajectory (based on trajectory type)
     private func generateGroundTruthTrajectory() -> [CGPoint] {
         switch trajectoryResults.trajectoryType {
         case .figure8:
@@ -185,13 +177,13 @@ struct TrajectoryComparisonView: View {
         }
     }
     
-    // 生成8字形轨迹
+    // Generate figure-8 trajectory
     private func generateFigure8Trajectory() -> [CGPoint] {
         var points: [CGPoint] = []
         let centerX = screenSize.width / 2
         let centerY = screenSize.height / 2
         
-        // 计算边距和半径（与MeasurementManager保持一致）
+        // Calculate margins and radius (consistent with MeasurementManager)
         let marginX: CGFloat = 30.0
         let marginY: CGFloat = 30.0
         let maxRadiusFromWidth = (screenSize.width - marginX * 2) / 2
@@ -201,7 +193,7 @@ struct TrajectoryComparisonView: View {
         let upperCenterY = centerY - circleRadius
         let lowerCenterY = centerY + circleRadius
         
-        // 生成足够密集的点来绘制平滑的8字形
+        // Generate dense enough points to draw smooth figure-8
         let totalPoints = 200
         
         for i in 0...totalPoints {
@@ -211,14 +203,14 @@ struct TrajectoryComparisonView: View {
             let y: CGFloat
             
             if progress <= 0.5 {
-                // 上圆
+                // Upper circle
                 let circleProgress = progress * 2
                 let angle = circleProgress * 2 * Float.pi
                 let adjustedAngle = Float.pi / 2 + angle
                 x = centerX + circleRadius * CGFloat(cos(adjustedAngle))
                 y = upperCenterY + circleRadius * CGFloat(sin(adjustedAngle))
             } else {
-                // 下圆
+                // Lower circle
                 let circleProgress = (progress - 0.5) * 2
                 let angle = circleProgress * 2 * Float.pi
                 let adjustedAngle = 3 * Float.pi / 2 - angle
@@ -234,7 +226,7 @@ struct TrajectoryComparisonView: View {
         return points
     }
     
-    // 生成正弦函数轨迹
+    // Generate sinusoidal trajectory
     private func generateSinusoidalTrajectory() -> [CGPoint] {
         var points: [CGPoint] = []
         let totalPoints = 200
@@ -247,83 +239,83 @@ struct TrajectoryComparisonView: View {
         return points
     }
     
-    // 生成基于正弦波的正弦函数轨迹（带反向传播，与MeasurementManager保持一致）
+    // Generate sine wave-based sinusoidal trajectory (with reverse propagation, consistent with MeasurementManager)
     private func generateSinusoidalTrajectoryPoint(at progress: Float) -> CGPoint {
-        // 计算安全边距（考虑灵动岛和home indicator）
+        // Calculate safe margins (considering Dynamic Island and home indicator)
         let marginX: CGFloat = 30.0
-        let marginY: CGFloat = 60.0  // 增加Y边距以避开灵动岛和home indicator
+        let marginY: CGFloat = 60.0  // Increase Y margin to avoid Dynamic Island and home indicator
         
-        // 计算可用区域
+        // Calculate available area
         let availableWidth = screenSize.width - 2 * marginX
         let availableHeight = screenSize.height - 2 * marginY
         
-        // 将整个轨迹分为两个阶段：前进和反向
-        let phase1Duration: Float = 0.5  // 前50%时间用于第一阶段
-        let phase2Duration: Float = 0.5  // 后50%时间用于第二阶段
+        // Divide entire trajectory into two phases: forward and reverse
+        let phase1Duration: Float = 0.5  // First 50% of time for phase 1
+        let phase2Duration: Float = 0.5  // Last 50% of time for phase 2
         
         let x: CGFloat
         let y: CGFloat
         
         if progress <= phase1Duration {
-            // 第一阶段：从左上角开始的正弦波，从上到下
+            // Phase 1: sine wave starting from top-left, from top to bottom
             let phase1Progress = progress / phase1Duration
-            let waveFrequency: Float = 3.0  // 3个完整波形
+            let waveFrequency: Float = 3.0  // 3 complete wave forms
             let amplitude = availableWidth / 2.0
             let centerX = screenSize.width / 2.0
             
-            // Y坐标从上到下
+            // Y coordinate from top to bottom
             y = marginY + CGFloat(phase1Progress) * availableHeight
             
-            // X坐标按正弦波变化，调整起始相位让轨迹从左上角开始
-            // 左上角对应的相位：sin(phase) = -1，即 phase = 3π/2
-            let startPhase: Float = 3.0 * Float.pi / 2.0  // 从左上角开始
+            // X coordinate changes with sine wave, adjust starting phase to begin from top-left
+            // Phase corresponding to top-left: sin(phase) = -1, i.e., phase = 3π/2
+            let startPhase: Float = 3.0 * Float.pi / 2.0  // Start from top-left
             let wavePhase = startPhase + phase1Progress * waveFrequency * 2.0 * Float.pi
             let waveOffset = amplitude * CGFloat(sin(wavePhase))
             x = centerX + waveOffset
             
         } else {
-            // 第二阶段：从下到上的正弦波（反向传播，改变频率以减少重叠）
+            // Phase 2: sine wave from bottom to top (reverse propagation, change frequency to reduce overlap)
             let phase2Progress = (progress - phase1Duration) / phase2Duration
-            let waveFrequency: Float = 2.5  // 改变频率为2.5个波形，减少重叠
+            let waveFrequency: Float = 2.5  // Change frequency to 2.5 wave forms, reduce overlap
             let amplitude = availableWidth / 2.0
             let centerX = screenSize.width / 2.0
             
-            // Y坐标从下到上（反向）
+            // Y coordinate from bottom to top (reverse)
             y = marginY + availableHeight - CGFloat(phase2Progress) * availableHeight
             
-            // X坐标按正弦波变化，但加上相位偏移确保连续性
-            // 计算第一阶段结束时的X位置，确保第二阶段从这个位置开始
-            let phase1StartPhase: Float = 3.0 * Float.pi / 2.0  // 第一阶段起始相位
-            let phase1EndPhase = phase1StartPhase + 1.0 * 3.0 * 2.0 * Float.pi  // 第一阶段结束时的相位
+            // X coordinate changes with sine wave, but add phase offset to ensure continuity
+            // Calculate X position at end of phase 1, ensure phase 2 starts from this position
+            let phase1StartPhase: Float = 3.0 * Float.pi / 2.0  // Phase 1 starting phase
+            let phase1EndPhase = phase1StartPhase + 1.0 * 3.0 * 2.0 * Float.pi  // Phase at end of phase 1
             let phase1EndX = centerX + amplitude * CGFloat(sin(phase1EndPhase))
             
-            // 第二阶段的起始相位，确保从第一阶段结束位置开始
+            // Phase 2 starting phase, ensure starting from phase 1 end position
             let phase2StartPhase = asin(Float((phase1EndX - centerX) / amplitude))
             let wavePhase = phase2StartPhase + phase2Progress * waveFrequency * 2.0 * Float.pi
             let waveOffset = amplitude * CGFloat(sin(wavePhase))
             x = centerX + waveOffset
         }
         
-        // 确保坐标在屏幕边界内
+        // Ensure coordinates are within screen boundaries
         let clampedX = max(marginX, min(screenSize.width - marginX, x))
         let clampedY = max(marginY, min(screenSize.height - marginY, y))
         
         return CGPoint(x: clampedX, y: clampedY)
     }
     
-    // 辅助函数：两点间线性插值
+    // Helper function: linear interpolation between two points
     private func interpolatePoints(from start: CGPoint, to end: CGPoint, t: CGFloat) -> CGPoint {
         let x = start.x + (end.x - start.x) * t
         let y = start.y + (end.y - start.y) * t
         return CGPoint(x: x, y: y)
     }
     
-    // 对轨迹数据进行合适的采样
+    // Appropriately sample trajectory data
     private func sampleTrajectoryPoints() -> [CGPoint] {
         let allPoints = trajectoryResults.trajectoryPoints
         guard !allPoints.isEmpty else { return [] }
         
-        // 每10个点采样一个，保持合理的密度
+        // Sample one point every 10 points, maintain reasonable density
         let sampleRate = 10
         var sampledPoints: [CGPoint] = []
         
@@ -331,7 +323,7 @@ struct TrajectoryComparisonView: View {
             sampledPoints.append(allPoints[i].actualPosition)
         }
         
-        // 确保包含最后一个点
+        // Ensure the last point is included
         if let lastPoint = allPoints.last {
             sampledPoints.append(lastPoint.actualPosition)
         }
@@ -340,7 +332,7 @@ struct TrajectoryComparisonView: View {
     }
 }
 
-// 统计卡片组件
+// Statistics card component
 struct StatCard: View {
     let title: String
     let value: String
